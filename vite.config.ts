@@ -19,7 +19,6 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../src/dma/static",
     emptyOutDir: true,
   },
   plugins: [react(), viteSingleFile()],

@@ -476,7 +476,7 @@ extra-dependencies = [
 features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
 lock-filename = "requirements/requirements-docs.txt"
 pip-compile-constraint = "default"
-python-version = "3.12"
+python = "3.12"
 template = "test"
 type = "pip-compile"
 
@@ -523,7 +523,7 @@ features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
 lock-filename = "requirements/requirements-dev.txt"
 path = ".venv/"
 pip-compile-constraint = "docs"
-python-version = "3.12"
+python = "3.12"
 template = "test"
 type = "pip-compile"
 
