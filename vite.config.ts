@@ -1,6 +1,5 @@
 import { defineConfig } from "vite"
 import path from "path"
-import litestar from "litestar-vite-plugin"
 import react from "@vitejs/plugin-react"
 import { viteSingleFile } from "vite-plugin-singlefile"
 
@@ -20,19 +19,10 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: "../src/dma/static",
     emptyOutDir: true,
   },
-  plugins: [
-    react(),
-    litestar({
-      input: ["resources/index.html"],
-      assetUrl: `${ASSET_URL}`,
-      bundleDirectory: "../src/dma/static",
-      resourceDirectory: "resources",
-      hotFile: "public/hot",
-    }),
-    viteSingleFile(),
-  ],
+  plugins: [react(), viteSingleFile()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "resources"),
