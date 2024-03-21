@@ -32,9 +32,9 @@ const MainLayout = ({
 }
 
 MainLayout.defaultProps = {
-  title: "Litestar Fullstack Application",
-  description: "A fullstack reference application",
-  keywords: "litestar",
+  title: "Database Migration Assessment",
+  description: "Migrate to the cloud",
+  keywords: "google",
 }
 
 export default MainLayout

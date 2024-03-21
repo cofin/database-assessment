@@ -19,6 +19,9 @@ export default defineConfig({
       host: `${VITE_HOST}`,
     },
   },
+  build: {
+    emptyOutDir: true,
+  },
   plugins: [
     react(),
     litestar({
