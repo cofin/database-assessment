@@ -19,7 +19,7 @@ else:  # pragma: no cover
     rich_click_traceback_install(suppress=["click", "rich_click", "rich"])
     rich_click_patch()
     click.rich_click.USE_RICH_MARKUP = True
-    click.rich_click.USE_MARKDOWN = False
+    click.rich_click.USE_MARKDOWN = True
     click.rich_click.SHOW_ARGUMENTS = True
     click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
     click.rich_click.SHOW_ARGUMENTS = True

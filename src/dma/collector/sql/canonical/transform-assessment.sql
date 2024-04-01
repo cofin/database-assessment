@@ -1,4 +1,4 @@
--- transform-postgres-assessment!
+-- name: transformation-assessment-ddl!
 create or replace table database_summary(
         database_name varchar,
         database_type varchar,

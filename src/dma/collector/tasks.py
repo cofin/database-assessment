@@ -51,10 +51,11 @@ async def readiness_check(
             local_db = import_data_to_local_db(local_db, _extended_collection)
 
             # transform data
-            local_db = execute_local_db_pipeline(local_db, pipeline_manager)
+            local_db = await execute_local_db_pipeline(local_db, pipeline_manager)
             console.print(Padding("COLLECTION SUMMARY", 1, style="bold", expand=True), width=80)
             # print summary
             print_summary(console, local_db, pipeline_manager, db_type)
+    await async_engine.dispose()
 
 
 def import_data_to_local_db(
@@ -67,12 +68,12 @@ def import_data_to_local_db(
     return local_db
 
 
-def execute_local_db_pipeline(
+async def execute_local_db_pipeline(
     local_db: duckdb.DuckDBPyConnection, manager: CanonicalQueryManager
 ) -> duckdb.DuckDBPyConnection:
     """Transforms Loaded Data into the Canonical Model Tables."""
-    manager.execute_transformation_queries()
-    manager.execute_assessment_queries()
+    await manager.execute_transformation_queries()
+    await manager.execute_assessment_queries()
     return local_db
 
 

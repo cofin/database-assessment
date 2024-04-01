@@ -44,11 +44,11 @@ class CollectionQueryManager(QueryManager):
         with console.status("[bold green]Executing queries...[/]") as _status:
             results: dict[str, Any] = {}
             for script in self.available_queries("collection"):
-                console.log(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
                 script_result = await self.select(script, PKEY="test", DMA_SOURCE_ID="testing", DMA_MANUAL_ID=None)
                 results[script] = script_result
             if not self.available_queries("collection"):
-                console.log(" [dim grey]* No collection queries for this database type[/]")
+                console.print(" [dim grey]* No collection queries for this database type[/]")
             return results
 
     async def execute_extended_collection_queries(
@@ -67,11 +67,11 @@ class CollectionQueryManager(QueryManager):
         with console.status("[bold green]Executing queries...[/]") as _status:
             results: dict[str, Any] = {}
             for script in self.available_queries("extended_collection"):
-                console.log(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
                 script_result = await self.select(script, PKEY="test", DMA_SOURCE_ID="testing", DMA_MANUAL_ID=None)
                 results[script] = script_result
             if not self.available_queries("extended_collection"):
-                console.log(" [dim grey]* No extended collection queries for this database type[/]")
+                console.print(" [dim grey]* No extended collection queries for this database type[/]")
             return results
 
 
@@ -125,31 +125,25 @@ class CanonicalQueryManager(QueryManager):
     def __init__(
         self,
         connection: Any,
-        queries: Queries = aiosql.from_path(sql_path=f"{_root_path}/collector/sql/canonical", driver_adapter="duckdb"),
+        queries: Queries = aiosql.from_path(sql_path=f"{_root_path}/collector/sql/canonical/", driver_adapter="duckdb"),
     ) -> None:
         super().__init__(connection, queries)
 
-    def execute_transformation_queries(
+    async def execute_transformation_queries(
         self,
-        pkey: str = "test",
-        dma_source_id: str = "testing",
-        dma_manual_id: str | None = None,
         *args: Any,
         **kwargs: Any,
-    ) -> dict[str, Any]:
+    ) -> None:
         """Execute pre-processing queries."""
         console.print(Padding("TRANSFORMATION QUERIES", 1, style="bold", expand=True), width=80)
         with console.status("[bold green]Executing queries...[/]") as _status:
-            results: dict[str, Any] = {}
             for script in self.available_queries("transformation"):
-                console.log(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
-                script_result = self.select(script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id)
-                results[script] = script_result
+                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+                await self.execute(script)
             if not self.available_queries("transformation"):
-                console.log(" [dim grey]* No transformation queries for this database type[/]")
-            return results
+                console.print(" [dim grey]* No transformation queries for this database type[/]")
 
-    def execute_assessment_queries(
+    async def execute_assessment_queries(
         self,
         pkey: str = "test",
         dma_source_id: str = "testing",
@@ -166,5 +160,5 @@ class CanonicalQueryManager(QueryManager):
                 script_result = self.select(script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id)
                 results[script] = script_result
             if not self.available_queries("assessment"):
-                console.log(" [dim grey]* No assessment queries for this database type[/]")
+                console.print(" [dim grey]* No assessment queries for this database type[/]")
             return results
