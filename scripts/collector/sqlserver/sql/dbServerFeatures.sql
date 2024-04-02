@@ -165,25 +165,44 @@ begin exec(
     WHERE name = ''external scripts enabled'''
 );
 
-end -- Data Quality Services
-begin exec(
-    '
-    WITH dqs_service as (
-    select count(*) as dqs_count from syslogins where name like ''##MS_dqs%'')
-    INSERT INTO #FeaturesEnabled
-        SELECT
-            ''DATA QUALITY SERVICES'' as Features,
-            CASE
-                WHEN dqs_count > 0 THEN 1
-                ELSE 0
-            END AS Is_EnabledOrUsed,
-            dqs_count as Count
-        from dqs_service'
-);
 
-end --filestream enabled
-if @PRODUCT_VERSION >= 11 begin begin TRY exec(
-    'WITH check_filestream AS (
+-- Data Quality Services
+BEGIN
+    BEGIN TRY
+        exec('
+        WITH dqs_service as (
+        select count(*) as dqs_count from syslogins where name like ''##MS_dqs%'')
+        INSERT INTO #FeaturesEnabled 
+            SELECT 
+                ''DATA QUALITY SERVICES'' as Features,
+                CASE 
+                    WHEN dqs_count > 0 THEN 1
+                    ELSE 0
+                END AS Is_EnabledOrUsed,
+                dqs_count as Count
+            from dqs_service');
+        END TRY
+    BEGIN CATCH
+        exec('
+        WITH dqs_service as (
+        select count(*) as dqs_count from sys.sql_logins where name like ''##MS_dqs%'')
+        INSERT INTO #FeaturesEnabled 
+            SELECT 
+                ''DATA QUALITY SERVICES'' as Features,
+                CASE 
+                    WHEN dqs_count > 0 THEN 1
+                    ELSE 0
+                END AS Is_EnabledOrUsed,
+                dqs_count as Count
+            from dqs_service');
+        END CATCH
+END;
+
+--filestream enabled
+IF @PRODUCT_VERSION >= 11
+BEGIN
+    BEGIN TRY
+        exec('WITH check_filestream AS (
             SELECT
                 name,
                 ISNULL((SELECT count(1) FROM sys.master_files AS mf WHERE mf.database_id = db.database_id AND mf.type = 2),0) AS hasfs
