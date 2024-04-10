@@ -14,6 +14,7 @@
 # - pytest-sugar
 # - pytest-click
 # - pytest-xdist
+# - pytest-databases
 # - mkdocs>=1.5
 # - mkdocs-material>=9.4
 # - mkdocs-include-markdown-plugin
@@ -49,15 +50,22 @@
 #
 
 aioodbc==0.5.0
+    # via hatch.envs.docs
 aiosql==10.1
+    # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
 anyio==4.3.0
     # via
+    #   hatch.envs.docs
     #   httpx
     #   litestar
 async-timeout==4.0.3
     # via asyncpg
 asyncmy==0.2.9
+    # via hatch.envs.docs
 asyncpg==0.29.0
+    # via hatch.envs.docs
 babel==2.14.0
     # via
     #   mkdocs-git-revision-date-localized-plugin
@@ -81,6 +89,8 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
     #   litestar
     #   mkdocs
     #   mkdocstrings
@@ -95,7 +105,9 @@ colorama==0.4.6
 configparser==6.0.1
     # via pyinfra
 coverage==7.4.4
-    # via pytest-cov
+    # via
+    #   hatch.envs.docs
+    #   pytest-cov
 cryptography==42.0.5
     # via
     #   oracledb
@@ -105,11 +117,15 @@ cryptography==42.0.5
 csscompressor==0.9.5
     # via mkdocs-minify-plugin
 cython==3.0.10
+    # via hatch.envs.docs
 distro==1.9.0
     # via pyinfra
 dnspython==2.6.1
     # via linkchecker
 duckdb==0.10.1
+    # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
 execnet==2.1.1
     # via pytest-xdist
 faker==24.7.1
@@ -126,6 +142,7 @@ granian==1.2.2
     # via litestar-granian
 greenlet==3.0.3
     # via
+    #   -c requirements/requirements.txt
     #   gevent
     #   sqlalchemy
 griffe==0.42.1
@@ -152,6 +169,8 @@ iniconfig==2.0.0
     # via pytest
 jinja2==3.1.3
     # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
     #   litestar
     #   mike
     #   mkdocs
@@ -161,9 +180,13 @@ jinja2==3.1.3
 jsmin==3.0.1
     # via mkdocs-minify-plugin
 linkchecker==10.4.0
+    # via hatch.envs.docs
 litestar==2.8.1
-    # via litestar-granian
+    # via
+    #   hatch.envs.docs
+    #   litestar-granian
 litestar-granian==0.2.6
+    # via hatch.envs.docs
 markdown==3.6
     # via
     #   mkdocs
@@ -172,20 +195,27 @@ markdown==3.6
     #   mkdocstrings
     #   pymdown-extensions
 markdown-it-py==3.0.0
-    # via rich
+    # via
+    #   -c requirements/requirements.txt
+    #   rich
 markupsafe==2.1.5
     # via
+    #   -c requirements/requirements.txt
     #   jinja2
     #   mkdocs
     #   mkdocs-autorefs
     #   mkdocstrings
 mdurl==0.1.2
-    # via markdown-it-py
+    # via
+    #   -c requirements/requirements.txt
+    #   markdown-it-py
 mergedeep==1.3.4
     # via mkdocs
 mike==2.0.0
+    # via hatch.envs.docs
 mkdocs==1.5.3
     # via
+    #   hatch.envs.docs
     #   mike
     #   mkdocs-autorefs
     #   mkdocs-gen-files
@@ -200,30 +230,48 @@ mkdocs==1.5.3
 mkdocs-autorefs==1.0.1
     # via mkdocstrings
 mkdocs-gen-files==0.5.0
+    # via hatch.envs.docs
 mkdocs-git-revision-date-localized-plugin==1.2.4
+    # via hatch.envs.docs
 mkdocs-glightbox==0.3.7
+    # via hatch.envs.docs
 mkdocs-include-markdown-plugin==6.0.5
+    # via hatch.envs.docs
 mkdocs-literate-nav==0.6.1
+    # via hatch.envs.docs
 mkdocs-material==9.5.17
+    # via hatch.envs.docs
 mkdocs-material-extensions==1.3.1
     # via mkdocs-material
 mkdocs-minify-plugin==0.8.0
+    # via hatch.envs.docs
 mkdocs-redirects==1.2.1
+    # via hatch.envs.docs
 mkdocs-section-index==0.3.8
+    # via hatch.envs.docs
 mkdocstrings==0.24.3
-    # via mkdocstrings-python
+    # via
+    #   hatch.envs.docs
+    #   mkdocstrings-python
 mkdocstrings-python==1.9.2
     # via mkdocstrings
 msgspec==0.18.6
-    # via litestar
+    # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
+    #   litestar
 multidict==6.0.5
     # via
     #   litestar
     #   yarl
 nodeenv==1.8.0
+    # via hatch.envs.docs
 numpy==1.26.4
-    # via pyarrow
+    # via
+    #   -c requirements/requirements.txt
+    #   pyarrow
 oracledb==2.1.1
+    # via hatch.envs.docs
 packaging==24.0
     # via
     #   mkdocs
@@ -242,19 +290,28 @@ platformdirs==4.2.0
 pluggy==1.4.0
     # via pytest
 polars==0.20.18
+    # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
 polyfactory==2.15.0
     # via litestar
 pyarrow==15.0.2
-    # via polars
+    # via
+    #   -c requirements/requirements.txt
+    #   polars
 pycparser==2.22
     # via cffi
 pygments==2.17.2
     # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
     #   mkdocs-material
     #   rich
 pyinfra==2.9.2
+    # via hatch.envs.docs
 pymdown-extensions==10.7.1
     # via
+    #   hatch.envs.docs
     #   mkdocs-material
     #   mkdocstrings
 pynacl==1.5.0
@@ -267,18 +324,28 @@ pyspnego==0.10.2
     # via requests-ntlm
 pytest==8.1.1
     # via
+    #   hatch.envs.docs
     #   pytest-click
     #   pytest-cov
+    #   pytest-databases
     #   pytest-mock
     #   pytest-sugar
     #   pytest-vcr
     #   pytest-xdist
 pytest-click==1.1.0
+    # via hatch.envs.docs
 pytest-cov==5.0.0
+    # via hatch.envs.docs
+pytest-databases==0.2.3
+    # via hatch.envs.docs
 pytest-mock==3.14.0
+    # via hatch.envs.docs
 pytest-sugar==1.0.0
+    # via hatch.envs.docs
 pytest-vcr==1.0.2
+    # via hatch.envs.docs
 pytest-xdist==3.5.0
+    # via hatch.envs.docs
 python-dateutil==2.9.0.post0
     # via
     #   faker
@@ -310,16 +377,14 @@ requests-ntlm==1.2.0
     # via pywinrm
 rich==13.7.1
     # via
+    #   -c requirements/requirements.txt
     #   litestar
     #   rich-click
 rich-click==1.7.4
-    # via litestar
-setuptools==69.2.0
     # via
-    #   nodeenv
-    #   pyinfra
-    #   zope-event
-    #   zope-interface
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
+    #   litestar
 six==1.16.0
     # via
     #   python-dateutil
@@ -333,6 +398,9 @@ sniffio==1.3.1
 soupsieve==2.5
     # via beautifulsoup4
 sqlalchemy==2.0.29
+    # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
 structlog==24.1.0
     # via litestar
 termcolor==2.4.0
@@ -341,6 +409,8 @@ typer==0.11.1
     # via granian
 typing-extensions==4.11.0
     # via
+    #   -c requirements/requirements.txt
+    #   hatch.envs.docs
     #   litestar
     #   polyfactory
     #   rich-click
@@ -370,3 +440,6 @@ zope-event==5.0
     # via gevent
 zope-interface==6.2
     # via gevent
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

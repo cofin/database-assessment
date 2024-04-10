@@ -420,6 +420,7 @@ extra-dependencies = [
     "pytest-sugar",
     "pytest-click",
     "pytest-xdist",
+    "pytest-databases",
 ]
 features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
 # lock-filename = "requirements/requirements-{env_name}.txt"
@@ -453,6 +454,7 @@ extra-dependencies = [
     "pytest-sugar",
     "pytest-click",
     "pytest-xdist",
+    "pytest-databases",
     "mkdocs>=1.5",
     "mkdocs-material>=9.4",
     # Plugins
@@ -497,7 +499,39 @@ build-check = ["build", "validate"]
 [tool.hatch.envs.local]
 extra-dependencies = [
     "bump2version",
+    # tests
     "nodeenv",
+    # required test dependencies
+    "cython",
+    "anyio",
+    "coverage[toml]>=6.2",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-vcr",
+    "pytest-sugar",
+    "pytest-click",
+    "pytest-xdist",
+    "pytest-databases",
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.4",
+    # Plugins
+    "mkdocs-include-markdown-plugin",
+    "mkdocs-gen-files",
+    "mkdocs-literate-nav",
+    "mkdocs-minify-plugin>=0.5",
+    "mkdocs-section-index",
+    "mkdocs-git-revision-date-localized-plugin>=1.1",
+    "mkdocstrings[python]",
+    "mkdocs-redirects>=1.2",
+    "mkdocs-glightbox>=0.3.0",
+    "mike>=2.0.0",
+    # Extensions
+    "pymdown-extensions>=10.5",
+    # Necessary for syntax highlighting in code blocks
+    "pygments>=2.13",
+    # Validation
+    "linkchecker>=10.3",
     # cli databasae brwoser
     "harlequin",
     # linting
@@ -555,10 +589,10 @@ python-version = "3.12"
 [tool.hatch.envs.lint.scripts]
 check = ["style", "typing"]
 fix = [
-    "typing",
     "ruff format {args:.}",
-    "ruff check --fix {args:.}",
-    "style",                      # feedback on what is not fixable
+    "ruff check --fix --unsafe-fixes {args:.}",
+    "typing",
+    "style",                                    # feedback on what is not fixable
     "pre-commit run --all-files",
 ]
 style = ["echo \"VERSION: `ruff --version`\"", "ruff check {args:.}", "ruff format --check {args:.}"]

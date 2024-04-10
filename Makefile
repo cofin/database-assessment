@@ -235,7 +235,11 @@ lint: 												## Runs pre-commit hooks; includes ruff linting, codespell, bl
 .PHONY: test
 test:  												## Run the tests
 	@echo "=> Running test cases"
-	@docker compose -f tests/docker-compose.yml up --force-recreate -d
-	@SKIP_DOCKER_COMPOSE=true hatch run test:cov
-	@docker compose -f tests/docker-compose.yml down --remove-orphans
+	@hatch run local:cov
+	@echo "=> Tests complete"
+
+.PHONY: test-all
+test-all:  												## Run the tests against all python versions
+	@echo "=> Running test cases"
+	@hatch run test:cov
 	@echo "=> Tests complete"
