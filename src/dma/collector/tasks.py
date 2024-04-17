@@ -8,7 +8,8 @@ from rich.padding import Padding
 from rich.table import Table
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dma.collector.queries import provide_canonical_queries, provides_collection_queries
+from dma.collector.queries import provide_canonical_queries, provide_collection_query_manager
+from dma.collector.readiness_check import ReadinessCheck
 from dma.lib.db.base import get_engine
 from dma.lib.db.local import get_duckdb_connection
 
@@ -41,8 +42,13 @@ async def readiness_check(
     async_engine = get_engine(db_type, username, password, hostname, port, database)
     with get_duckdb_connection(working_path) as local_db:
         async with AsyncSession(async_engine) as db_session:
-            collection_manager = cast("CollectionQueryManager", await anext(provides_collection_queries(db_session)))
+            collection_manager = cast(
+                "CollectionQueryManager", await anext(provide_collection_query_manager(db_session))
+            )
             pipeline_manager = next(provide_canonical_queries(local_db))
+            readines_check = ReadinessCheck(
+                local_db=local_db, canonical_query_manager=pipeline_manager, db_type=db_type, console=console
+            )
             # collect data
             _collection = await collection_manager.execute_collection_queries()
             _extended_collection = await collection_manager.execute_extended_collection_queries()

@@ -23,10 +23,13 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def provides_collection_queries(
-    db_session: AsyncSession,
-) -> AsyncIterator[CollectionQueryManager]:
-    """Construct repository and service objects for the request."""
+async def provide_collection_query_manager(db_session: AsyncSession) -> AsyncIterator[CollectionQueryManager]:
+    """Provide collection query manager.
+
+    Uses SQLAlchemy Connection management to establish and retrieve a valid database session.
+
+    The driver dialect is detected from the session and the underlying raw DBAPI connection is fetched and passed to the Query Manager.
+    """
     dialect = db_session.bind.dialect if db_session.bind is not None else db_session.get_bind().dialect
     db_connection = await db_session.connection()
 

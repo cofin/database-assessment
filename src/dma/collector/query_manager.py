@@ -13,24 +13,89 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import aiosql
 from rich.padding import Padding
+from typing_extensions import ParamSpec
 
 from dma.cli._utils import console
 from dma.lib.db.query_manager import QueryManager
 from dma.utils import module_to_os_path
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from aiosql.queries import Queries
+    from rich.status import Status
 
 _root_path = module_to_os_path("dma")
+
+
+R = TypeVar("R")
+P = ParamSpec("P")
+
+
+def printed_execution(
+    f: Callable[P, R | Awaitable[R]], section_title: str = "COLLECTION_QUERIES"
+) -> Callable[P, R | Awaitable[R]]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | Awaitable[R]:
+        """Print some friendly output."""
+        console.print(Padding(f"{section_title}", 1, style="bold", expand=True), width=80)
+        with console.status("[bold green]Executing queries...[/]") as _status:
+            kwargs["_status"] = _status
+            return f(*args, **kwargs)
+
+    return cast("Callable[P, R | Awaitable[R]]", wrapper)
+
+
+class CanonicalQueryManager(QueryManager):
+    """Canonical Query Manager"""
+
+    def __init__(
+        self,
+        connection: Any,
+        queries: Queries = aiosql.from_path(sql_path=f"{_root_path}/collector/sql/canonical/", driver_adapter="duckdb"),
+    ) -> None:
+        super().__init__(connection, queries)
+
+    @printed_execution(section_title="TRANSFORMATION QUERIES")
+    async def execute_transformation_queries(self, *args: Any, **kwargs: Any) -> None:
+        """Execute pre-processing queries."""
+        status = cast("Status", kwargs.pop("_status"))
+        for script in self.available_queries("transformation"):
+            status.update(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+            await self.execute(script)
+            status.console.print(rf" [green]:heavy_check_mark:[/] Gathered [bold magenta]`{script}`[/]")
+        if not self.available_queries("transformation"):
+            console.print(" [dim grey]:heavy_check_mark: No transformation queries for this database type[/]")
+
+    @printed_execution(section_title="ASSESSMENT QUERIES")
+    async def execute_assessment_queries(
+        self,
+        pkey: str = "test",
+        dma_source_id: str = "testing",
+        dma_manual_id: str | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Execute pre-processing queries."""
+        status = cast("Status", kwargs.pop("_status"))
+        results: dict[str, Any] = {}
+        for script in self.available_queries("assessment"):
+            status.update(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+            script_result = self.select(script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id)
+            results[script] = script_result
+            status.console.print(rf" [green]:heavy_check_mark:[/] Gathered [bold magenta]`{script}`[/]")
+        if not self.available_queries("assessment"):
+            console.print(" [dim grey]:heavy_check_mark: No assessment queries for this database type[/]")
+        return results
 
 
 class CollectionQueryManager(QueryManager):
     """Collection Query Manager"""
 
+    @printed_execution(section_title="COLLECTION QUERIES")
     async def execute_collection_queries(
         self,
         pkey: str = "test",
@@ -40,17 +105,20 @@ class CollectionQueryManager(QueryManager):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute pre-processing queries."""
-        console.print(Padding("COLLECTION QUERIES", 1, style="bold", expand=True), width=80)
-        with console.status("[bold green]Executing queries...[/]") as _status:
-            results: dict[str, Any] = {}
-            for script in self.available_queries("collection"):
-                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
-                script_result = await self.select(script, PKEY="test", DMA_SOURCE_ID="testing", DMA_MANUAL_ID=None)
-                results[script] = script_result
-            if not self.available_queries("collection"):
-                console.print(" [dim grey]* No collection queries for this database type[/]")
-            return results
+        status = cast("Status", kwargs.pop("_status"))
+        results: dict[str, Any] = {}
+        for script in self.available_queries("collection"):
+            status.update(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+            script_result = await self.select(
+                script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id
+            )
+            results[script] = script_result
+            status.console.print(rf" [green]:heavy_check_mark:[/] Gathered [bold magenta]`{script}`[/]")
+        if not self.available_queries("collection"):
+            status.console.print(" [dim grey]:heavy_check_mark: No collection queries for this database type[/]")
+        return results
 
+    @printed_execution(section_title="EXTENDED COLLECTION QUERIES")
     async def execute_extended_collection_queries(
         self,
         pkey: str = "test",
@@ -63,16 +131,18 @@ class CollectionQueryManager(QueryManager):
 
         Returns: None
         """
-        console.print(Padding("EXTENDED COLLECTION QUERIES", 1, style="bold", expand=True), width=80)
-        with console.status("[bold green]Executing queries...[/]") as _status:
-            results: dict[str, Any] = {}
-            for script in self.available_queries("extended_collection"):
-                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
-                script_result = await self.select(script, PKEY="test", DMA_SOURCE_ID="testing", DMA_MANUAL_ID=None)
-                results[script] = script_result
-            if not self.available_queries("extended_collection"):
-                console.print(" [dim grey]* No extended collection queries for this database type[/]")
-            return results
+        status = cast("Status", kwargs.pop("_status"))
+        results: dict[str, Any] = {}
+        for script in self.available_queries("extended_collection"):
+            status.update(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
+            script_result = await self.select(
+                script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id
+            )
+            results[script] = script_result
+            status.console.print(rf" [green]:heavy_check_mark:[/] Gathered [bold magenta]`{script}`[/]")
+        if not self.available_queries("extended_collection"):
+            console.print(" [dim grey]:heavy_check_mark: No extended collection queries for this database type[/]")
+        return results
 
 
 class PostgresCollectionQueryManager(CollectionQueryManager):
@@ -117,48 +187,3 @@ class SQLServerCollectionQueryManager(CollectionQueryManager):
         ),
     ) -> None:
         super().__init__(connection, queries)
-
-
-class CanonicalQueryManager(QueryManager):
-    """Canonical Query Manager"""
-
-    def __init__(
-        self,
-        connection: Any,
-        queries: Queries = aiosql.from_path(sql_path=f"{_root_path}/collector/sql/canonical/", driver_adapter="duckdb"),
-    ) -> None:
-        super().__init__(connection, queries)
-
-    async def execute_transformation_queries(
-        self,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        """Execute pre-processing queries."""
-        console.print(Padding("TRANSFORMATION QUERIES", 1, style="bold", expand=True), width=80)
-        with console.status("[bold green]Executing queries...[/]") as _status:
-            for script in self.available_queries("transformation"):
-                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
-                await self.execute(script)
-            if not self.available_queries("transformation"):
-                console.print(" [dim grey]* No transformation queries for this database type[/]")
-
-    async def execute_assessment_queries(
-        self,
-        pkey: str = "test",
-        dma_source_id: str = "testing",
-        dma_manual_id: str | None = None,
-        *args: Any,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute pre-processing queries."""
-        console.print(Padding("ASSESSMENT QUERIES", 1, style="bold", expand=True), width=80)
-        with console.status("[bold green]Executing queries...[/]") as _status:
-            results: dict[str, Any] = {}
-            for script in self.available_queries("assessment"):
-                console.print(rf" [yellow]*[/] Executing [bold magenta]`{script}`[/]")
-                script_result = self.select(script, PKEY=pkey, DMA_SOURCE_ID=dma_source_id, DMA_MANUAL_ID=dma_manual_id)
-                results[script] = script_result
-            if not self.available_queries("assessment"):
-                console.print(" [dim grey]* No assessment queries for this database type[/]")
-            return results
