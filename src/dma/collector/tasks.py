@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import polars as pl
 from rich.padding import Padding
-from rich.table import Table
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dma.collector.queries import provide_canonical_queries, provide_collection_query_manager
+from dma.collector.dependencies import provide_canonical_queries, provide_collection_query_manager
 from dma.collector.readiness_check import ReadinessCheck
 from dma.lib.db.base import get_engine
 from dma.lib.db.local import get_duckdb_connection
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     import duckdb
     from rich.console import Console
 
-    from dma.collector.query_manager import CanonicalQueryManager, CollectionQueryManager
+    from dma.collector.query_managers import CanonicalQueryManager, CollectionQueryManager
 
 if version_info < (3, 10):  # pragma: nocover
     from dma.utils import anext_ as anext  # noqa: A001
@@ -46,7 +45,7 @@ async def readiness_check(
                 "CollectionQueryManager", await anext(provide_collection_query_manager(db_session))
             )
             pipeline_manager = next(provide_canonical_queries(local_db))
-            readines_check = ReadinessCheck(
+            readiness_check = ReadinessCheck(
                 local_db=local_db, canonical_query_manager=pipeline_manager, db_type=db_type, console=console
             )
             # collect data
@@ -60,7 +59,7 @@ async def readiness_check(
             local_db = await execute_local_db_pipeline(local_db, pipeline_manager)
             console.print(Padding("COLLECTION SUMMARY", 1, style="bold", expand=True), width=80)
             # print summary
-            print_summary(console, local_db, pipeline_manager, db_type)
+            readiness_check.print_summary()
     await async_engine.dispose()
 
 
@@ -81,63 +80,3 @@ async def execute_local_db_pipeline(
     await manager.execute_transformation_queries()
     await manager.execute_assessment_queries()
     return local_db
-
-
-def print_summary(
-    console: Console,
-    local_db: duckdb.DuckDBPyConnection,
-    _manager: CanonicalQueryManager,
-    _db_type: Literal["mysql", "postgres", "mssql", "oracle"],
-) -> None:
-    """Print Summary of the Migration Readiness Assessment."""
-    if _db_type == "postgres":
-        _print_summary_postgres(console, local_db, _manager)
-    elif _db_type == "mysql":
-        _print_summary_mysql(console, local_db, _manager)
-    else:
-        msg = f"{_db_type} is not implemented."
-        raise NotImplementedError(msg)
-
-
-def _print_summary_postgres(
-    console: Console,
-    local_db: duckdb.DuckDBPyConnection,
-    _manager: CanonicalQueryManager,
-) -> None:
-    """Print Summary of the Migration Readiness Assessment."""
-    calculated_metrics = local_db.sql(
-        """
-            select metric_category, metric_name, metric_value
-            from collection_postgres_calculated_metrics
-        """,
-    ).fetchall()
-    count_table = Table(show_edge=False)
-    count_table.add_column("Metric Category", justify="right", style="green")
-    count_table.add_column("Metric", justify="right", style="green")
-    count_table.add_column("Value", justify="right", style="green")
-
-    for row in calculated_metrics:
-        count_table.add_row(*[str(col) for col in row])
-    console.print(count_table)
-
-
-def _print_summary_mysql(
-    console: Console,
-    local_db: duckdb.DuckDBPyConnection,
-    _manager: CanonicalQueryManager,
-) -> None:
-    """Print Summary of the Migration Readiness Assessment."""
-    calculated_metrics = local_db.sql(
-        """
-            select variable_category, variable_name, variable_value
-            from collection_mysql_config
-        """,
-    ).fetchall()
-    count_table = Table(show_edge=False)
-    count_table.add_column("Variable Category", justify="right", style="green")
-    count_table.add_column("Variable", justify="right", style="green")
-    count_table.add_column("Value", justify="right", style="green")
-
-    for row in calculated_metrics:
-        count_table.add_row(*[str(col) for col in row])
-    console.print(count_table)

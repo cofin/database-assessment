@@ -13,6 +13,9 @@
 # limitations under the License.
 from __future__ import annotations
 
+from collections.abc import Awaitable
+from functools import wraps
+from inspect import iscoroutinefunction
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import aiosql
@@ -24,29 +27,38 @@ from dma.lib.db.query_manager import QueryManager
 from dma.utils import module_to_os_path
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
-
     from aiosql.queries import Queries
     from rich.status import Status
 
 _root_path = module_to_os_path("dma")
 
-
-R = TypeVar("R")
 P = ParamSpec("P")
+R = TypeVar("R")
+
+SyncOrAsyncCallable = Callable[[Callable[P, Awaitable[R]]], Callable[P, R] | Callable[P, Awaitable[R]]]
 
 
 def printed_execution(
-    f: Callable[P, R | Awaitable[R]], section_title: str = "COLLECTION_QUERIES"
-) -> Callable[P, R | Awaitable[R]]:
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | Awaitable[R]:
-        """Print some friendly output."""
+    section_title: str,
+) -> SyncOrAsyncCallable:
+    def wrapper(func: Callable[P, R] | Callable[P, Awaitable[R]]) -> Callable[P, R] | Callable[P, Awaitable[R]]:
         console.print(Padding(f"{section_title}", 1, style="bold", expand=True), width=80)
         with console.status("[bold green]Executing queries...[/]") as _status:
-            kwargs["_status"] = _status
-            return f(*args, **kwargs)
+            if iscoroutinefunction(func):
 
-    return cast("Callable[P, R | Awaitable[R]]", wrapper)
+                async def async_inner(*args: P.args, **kwargs: P.kwargs) -> R:
+                    kwargs["_status"] = _status
+                    return await cast("Awaitable[R]", func(*args, **kwargs))
+
+                return wraps(func)(async_inner)
+
+            def sync_inner(*args: P.args, **kwargs: P.kwargs) -> R:
+                kwargs["_status"] = _status
+                return cast("R", func(*args, **kwargs))
+
+            return wraps(func)(sync_inner)
+
+    return cast("SyncOrAsyncCallable", wrapper)
 
 
 class CanonicalQueryManager(QueryManager):
@@ -59,7 +71,7 @@ class CanonicalQueryManager(QueryManager):
     ) -> None:
         super().__init__(connection, queries)
 
-    @printed_execution(section_title="TRANSFORMATION QUERIES")
+    @printed_execution(section_title="THE TRANSFORMATION QUERIES")
     async def execute_transformation_queries(self, *args: Any, **kwargs: Any) -> None:
         """Execute pre-processing queries."""
         status = cast("Status", kwargs.pop("_status"))
@@ -70,7 +82,7 @@ class CanonicalQueryManager(QueryManager):
         if not self.available_queries("transformation"):
             console.print(" [dim grey]:heavy_check_mark: No transformation queries for this database type[/]")
 
-    @printed_execution(section_title="ASSESSMENT QUERIES")
+    @printed_execution(section_title="THE ASSESSMENT QUERIES")
     async def execute_assessment_queries(
         self,
         pkey: str = "test",

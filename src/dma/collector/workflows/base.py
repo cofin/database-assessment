@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
     from rich.console import Console
 
-    from dma.collector.query_manager import CanonicalQueryManager
+    from dma.collector.query_managers import CanonicalQueryManager
 
 
 class BaseWorkflow:

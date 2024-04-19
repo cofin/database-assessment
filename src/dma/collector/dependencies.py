@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dma.collector.query_manager import (
+from dma.collector.query_managers import (
     CanonicalQueryManager,
     CollectionQueryManager,
     MySQLCollectionQueryManager,
