@@ -137,6 +137,104 @@ exclude = ["/.github", "/docs"]
 python = "3.12"
 scripts = ["dma"]
 
+#####################
+# Environment Setup #
+#####################
+
+# Default environment with production dependencies
+[tool.hatch.envs.default]
+lock-filename = "requirements/requirements.txt"
+pip-compile-constraint = "default"
+pip-compile-hashes = false
+pip-compile-installer = "uv"
+pip-compile-resolver = "uv"
+python = "3.12"
+requires = ["hatch-pip-compile"]
+type = "pip-compile"
+
+[tool.hatch.envs.default.scripts]
+upgrade-all = "PIP_COMPILE_UPGRADE=1 hatch env run --env {env_name} -- python --version"
+upgrade-pkg = "PIP_COMPILE_UPGRADE='{args}' hatch env run --env {env_name} -- python --version"
+
+# Test environment with test-only dependencies
+[tool.hatch.envs.test]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing"]
+template = "default"
+type = "virtual"
+
+# Test matrix for various Python versions replacing the functionality of tox
+[[tool.hatch.envs.test.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12"]
+
+[tool.hatch.envs.test.scripts]
+cov = "pytest -n 3 --dist loadgroup --cov-report=term-missing --cov=src/dma --cov=tests {args}"
+debug = "cov --no-cov -s --pdb --pdbcls=IPython.core.debugger:Pdb {args}"
+no-cov = "cov --no-cov {args}"
+
+
+# Docs environment
+[tool.hatch.envs.docs]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs"]
+template = "default"
+type = "virtual"
+
+[tool.hatch.envs.docs.env-vars]
+MKDOCS_CONFIG = "mkdocs.yml"
+PYTHONUNBUFFERED = "1"
+SOURCE_DATE_EPOCH = "1580601600"
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build --config-file {env:MKDOCS_CONFIG} --clean --strict {args}"
+ci-build = "mike deploy --config-file {env:MKDOCS_CONFIG} --update-aliases {args}"
+serve = "mkdocs serve --config-file {env:MKDOCS_CONFIG} --dev-addr localhost:8000 {args}"
+# --ignore-url=None since the SUMMARY.md file leaves a <toc>None</toc> in sitemap.xml
+validate = "linkchecker --config .linkcheckerrc --ignore-url=/reference --ignore-url=None site"
+# https://github.com/linkchecker/linkchecker/issues/678
+build-check = ["build", "validate"]
+
+[tool.hatch.envs.local]
+extra-dependencies = [
+    "bump2version",
+    # cli databasae brwoser
+    "harlequin",
+    "jupyterlab",
+    "ipython",
+    "seaborn",
+    "pandas",
+
+]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
+lock-filename = "requirements/requirements-dev.txt"
+path = ".venv/"
+pip-compile-constraint = "docs"
+python = "3.12"
+template = "test"
+type = "pip-compile"
+
+[tool.hatch.envs.local.scripts]
+start-infra = "docker-compose -f tests/docker-compose.yml up --force-recreate -d"
+stop-infra = "docker-compose -f tests/docker-compose.yml down --remove-orphans --volumes"
+
+
+# Lint environment
+[tool.hatch.envs.lint]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
+python = "3.12"
+type = "virtual"
+
+[tool.hatch.envs.lint.scripts]
+check = ["style", "typing"]
+fix = [
+    "ruff format {args:.}",
+    "ruff check --fix --unsafe-fixes {args:.}",
+    "typing",
+    "style",                                    # feedback on what is not fixable
+    "pre-commit run --all-files",
+]
+style = ["echo \"VERSION: `ruff --version`\"", "ruff check {args:.}", "ruff format --check {args:.}"]
+typing = ["echo \"VERSION: `mypy --version`\"", "mypy --install-types --non-interactive {args}"]
+
+
 ##################
 # External Tools #
 ##################
@@ -424,101 +522,3 @@ exclude_lines = [
     'class .*\bProtocol\):',
     '@(abc\.)?abstractmethod',
 ]
-
-
-#####################
-# Environment Setup #
-#####################
-
-# Default environment with production dependencies
-[tool.hatch.envs.default]
-lock-filename = "requirements/requirements.txt"
-pip-compile-constraint = "default"
-pip-compile-hashes = false
-pip-compile-installer = "uv"
-pip-compile-resolver = "uv"
-python = "3.12"
-requires = ["hatch-pip-compile"]
-type = "pip-compile"
-
-[tool.hatch.envs.default.scripts]
-upgrade-all = "PIP_COMPILE_UPGRADE=1 hatch env run --env {env_name} -- python --version"
-upgrade-pkg = "PIP_COMPILE_UPGRADE='{args}' hatch env run --env {env_name} -- python --version"
-
-# Test environment with test-only dependencies
-[tool.hatch.envs.test]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing"]
-template = "default"
-type = "virtual"
-
-# Test matrix for various Python versions replacing the functionality of tox
-[[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
-
-[tool.hatch.envs.test.scripts]
-cov = "pytest -n 3 --dist loadgroup --cov-report=term-missing --cov=src/dma --cov=tests {args}"
-debug = "cov --no-cov -s --pdb --pdbcls=IPython.core.debugger:Pdb {args}"
-no-cov = "cov --no-cov {args}"
-
-
-# Docs environment
-[tool.hatch.envs.docs]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs"]
-template = "default"
-type = "virtual"
-
-[tool.hatch.envs.docs.env-vars]
-MKDOCS_CONFIG = "mkdocs.yml"
-PYTHONUNBUFFERED = "1"
-SOURCE_DATE_EPOCH = "1580601600"
-
-[tool.hatch.envs.docs.scripts]
-build = "mkdocs build --config-file {env:MKDOCS_CONFIG} --clean --strict {args}"
-ci-build = "mike deploy --config-file {env:MKDOCS_CONFIG} --update-aliases {args}"
-serve = "mkdocs serve --config-file {env:MKDOCS_CONFIG} --dev-addr localhost:8000 {args}"
-# --ignore-url=None since the SUMMARY.md file leaves a <toc>None</toc> in sitemap.xml
-validate = "linkchecker --config .linkcheckerrc --ignore-url=/reference --ignore-url=None site"
-# https://github.com/linkchecker/linkchecker/issues/678
-build-check = ["build", "validate"]
-
-[tool.hatch.envs.local]
-extra-dependencies = [
-    "bump2version",
-    # cli databasae brwoser
-    "harlequin",
-    "jupyterlab",
-    "ipython",
-    "seaborn",
-    "pandas",
-
-]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
-lock-filename = "requirements/requirements-dev.txt"
-path = ".venv/"
-pip-compile-constraint = "docs"
-python = "3.12"
-template = "test"
-type = "pip-compile"
-
-[tool.hatch.envs.local.scripts]
-start-infra = "docker-compose -f tests/docker-compose.yml up --force-recreate -d"
-stop-infra = "docker-compose -f tests/docker-compose.yml down --remove-orphans --volumes"
-
-
-# Lint environment
-[tool.hatch.envs.lint]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
-python = "3.12"
-type = "virtual"
-
-[tool.hatch.envs.lint.scripts]
-check = ["style", "typing"]
-fix = [
-    "ruff format {args:.}",
-    "ruff check --fix --unsafe-fixes {args:.}",
-    "typing",
-    "style",                                    # feedback on what is not fixable
-    "pre-commit run --all-files",
-]
-style = ["echo \"VERSION: `ruff --version`\"", "ruff check {args:.}", "ruff format --check {args:.}"]
-typing = ["echo \"VERSION: `mypy --version`\"", "mypy --install-types --non-interactive {args}"]
