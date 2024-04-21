@@ -10,7 +10,7 @@ from sqlalchemy import text
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
 
-    from dma.collector.query_manager import CollectionQueryManager
+    from dma.collector.query_managers import CollectionQueryManager
 
 pytestmark = [
     pytest.mark.anyio,

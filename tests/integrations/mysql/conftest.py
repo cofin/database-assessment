@@ -8,7 +8,7 @@ from pytest import FixtureRequest
 from sqlalchemy import URL, NullPool
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
-from dma.collector.queries import provides_collection_queries
+from dma.collector.dependencies import provide_collection_query_manager
 
 if version_info < (3, 10):  # pragma: nocover
     from dma.utils import anext_ as anext  # noqa: A001
@@ -16,7 +16,7 @@ if version_info < (3, 10):  # pragma: nocover
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from dma.collector.query_manager import CollectionQueryManager
+    from dma.collector.query_managers import CollectionQueryManager
 
 pytestmark = [
     pytest.mark.anyio,
@@ -108,4 +108,4 @@ def async_engine(request: FixtureRequest) -> AsyncEngine:
 @pytest.fixture()
 async def collection_queries(async_engine: AsyncEngine) -> AsyncGenerator[CollectionQueryManager, None]:
     async with AsyncSession(async_engine) as db_session:
-        yield await anext(provides_collection_queries(db_session))
+        yield await anext(provide_collection_query_manager(db_session))
