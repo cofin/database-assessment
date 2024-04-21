@@ -24,51 +24,72 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
-async def mysql8_asyncmy_engine(docker_ip: str, mysql8_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def mysql8_asyncmy_engine(
+    mysql_docker_ip: str,
+    mysql_user: str,
+    mysql_password: str,
+    mysql_database: str,
+    mysql8_port: int,
+    mysql8_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="mysql+asyncmy",
-            username="app",
-            password="super-secret",
-            host=docker_ip,
-            port=3360,
-            database="db",
+            username=mysql_user,
+            password=mysql_password,
+            host=mysql_docker_ip,
+            port=mysql8_port,
+            database=mysql_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def mysql57_asyncmy_engine(docker_ip: str, mysql57_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def mysql57_asyncmy_engine(
+    mysql_docker_ip: str,
+    mysql_user: str,
+    mysql_password: str,
+    mysql_database: str,
+    mysql57_port: int,
+    mysql57_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="mysql+asyncmy",
-            username="app",
-            password="super-secret",
-            host=docker_ip,
-            port=3363,
-            database="db",
+            username=mysql_user,
+            password=mysql_password,
+            host=mysql_docker_ip,
+            port=mysql57_port,
+            database=mysql_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def mysql56_asyncmy_engine(docker_ip: str, mysql56_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def mysql56_asyncmy_engine(
+    mysql_docker_ip: str,
+    mysql_user: str,
+    mysql_password: str,
+    mysql_database: str,
+    mysql56_port: int,
+    mysql56_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="mysql+asyncmy",
-            username="app",
-            password="super-secret",
-            host=docker_ip,
-            port=3362,
-            database="db",
+            username=mysql_user,
+            password=mysql_password,
+            host=mysql_docker_ip,
+            port=mysql56_port,
+            database=mysql_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
@@ -76,6 +97,7 @@ async def mysql56_asyncmy_engine(docker_ip: str, mysql56_service: None) -> Async
 
 
 @pytest.fixture(
+    scope="session",
     name="async_engine",
     params=[
         pytest.param(
@@ -105,7 +127,7 @@ def async_engine(request: FixtureRequest) -> AsyncEngine:
     return cast(AsyncEngine, request.getfixturevalue(request.param))
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 async def collection_queries(async_engine: AsyncEngine) -> AsyncGenerator[CollectionQueryManager, None]:
     async with AsyncSession(async_engine) as db_session:
         yield await anext(provide_collection_query_manager(db_session))

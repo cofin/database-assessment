@@ -26,85 +26,120 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
-async def postgres16_async_engine(docker_ip: str, postgres16_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def postgres16_async_engine(
+    postgres_docker_ip: str,
+    postgres_user: str,
+    postgres_password: str,
+    postgres_database: str,
+    postgres16_port,
+    postgres16_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="postgresql+asyncpg",
-            username="postgres",
-            password="super-secret",
-            host=docker_ip,
-            port=5427,
-            database="postgres",
+            username=postgres_user,
+            password=postgres_password,
+            host=postgres_docker_ip,
+            port=postgres16_port,
+            database=postgres_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def postgres15_async_engine(docker_ip: str, postgres15_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def postgres15_async_engine(
+    postgres_docker_ip: str,
+    postgres_user: str,
+    postgres_password: str,
+    postgres_database: str,
+    postgres15_port,
+    postgres15_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="postgresql+asyncpg",
-            username="postgres",
-            password="super-secret",
-            host=docker_ip,
-            port=5426,
-            database="postgres",
+            username=postgres_user,
+            password=postgres_password,
+            host=postgres_docker_ip,
+            port=postgres15_port,
+            database=postgres_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def postgres14_async_engine(docker_ip: str, postgres14_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def postgres14_async_engine(
+    postgres_docker_ip: str,
+    postgres_user: str,
+    postgres_password: str,
+    postgres_database: str,
+    postgres14_port,
+    postgres14_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="postgresql+asyncpg",
-            username="postgres",
-            password="super-secret",
-            host=docker_ip,
-            port=5425,
-            database="postgres",
+            username=postgres_user,
+            password=postgres_password,
+            host=postgres_docker_ip,
+            port=postgres14_port,
+            database=postgres_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def postgres13_async_engine(docker_ip: str, postgres13_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def postgres13_async_engine(
+    postgres_docker_ip: str,
+    postgres_user: str,
+    postgres_password: str,
+    postgres_database: str,
+    postgres13_port,
+    postgres13_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="postgresql+asyncpg",
-            username="postgres",
-            password="super-secret",
-            host=docker_ip,
-            port=5424,
-            database="postgres",
+            username=postgres_user,
+            password=postgres_password,
+            host=postgres_docker_ip,
+            port=postgres13_port,
+            database=postgres_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def postgres12_async_engine(docker_ip: str, postgres12_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def postgres12_async_engine(
+    postgres_docker_ip: str,
+    postgres_user: str,
+    postgres_password: str,
+    postgres_database: str,
+    postgres12_port,
+    postgres12_service: None,
+) -> AsyncEngine:
     """Postgresql instance for end-to-end testing."""
     return create_async_engine(
         URL(
             drivername="postgresql+asyncpg",
-            username="postgres",
-            password="super-secret",
-            host=docker_ip,
-            port=5423,
-            database="postgres",
+            username=postgres_user,
+            password=postgres_password,
+            host=postgres_docker_ip,
+            port=postgres12_port,
+            database=postgres_database,
             query={},  # type: ignore[arg-type]
         ),
         poolclass=NullPool,
@@ -112,6 +147,7 @@ async def postgres12_async_engine(docker_ip: str, postgres12_service: None) -> A
 
 
 @pytest.fixture(
+    scope="session",
     params=[
         pytest.param(
             "postgres12_async_engine",
@@ -154,7 +190,7 @@ def async_engine(request: FixtureRequest) -> AsyncEngine:
     return cast(AsyncEngine, request.getfixturevalue(request.param))
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 async def collection_queries(async_engine: AsyncEngine) -> AsyncGenerator[CollectionQueryManager, None]:
     async with AsyncSession(async_engine) as db_session:
         yield await anext(provide_collection_query_manager(db_session))

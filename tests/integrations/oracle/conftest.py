@@ -27,13 +27,17 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
-async def oracle18c_async_engine(docker_ip: str, oracle18c_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def oracle18c_async_engine(
+    oracle_docker_ip: str,
+    oracle_user: str,
+    oracle_password: str,
+    oracle18c_port: int,
+    oracle18c_service_name: str,
+    oracle18c_service: None,
+) -> AsyncEngine:
     """Oracle 18c instance for end-to-end testing.
 
-    Args:
-        docker_ip: IP address for TCP connection to Docker containers.
-        oracle18c_service: ...
 
     Returns:
         Async SQLAlchemy engine instance.
@@ -42,23 +46,28 @@ async def oracle18c_async_engine(docker_ip: str, oracle18c_service: None) -> Asy
         "oracle+oracledb://:@",
         thick_mode=False,
         connect_args={
-            "user": "app",
-            "password": "super-secret",
-            "host": docker_ip,
-            "port": 1512,
-            "service_name": "xepdb1",
+            "user": oracle_user,
+            "password": oracle_password,
+            "host": oracle_docker_ip,
+            "port": oracle18c_port,
+            "service_name": oracle18c_service_name,
         },
         poolclass=NullPool,
     )
 
 
-@pytest.fixture()
-async def oracle23c_async_engine(docker_ip: str, oracle23c_service: None) -> AsyncEngine:
+@pytest.fixture(scope="session")
+async def oracle23c_async_engine(
+    oracle_docker_ip: str,
+    oracle_user: str,
+    oracle_password: str,
+    oracle23c_port: int,
+    oracle23c_service_name: str,
+    oracle23c_service: None,
+) -> AsyncEngine:
     """Oracle 23c instance for end-to-end testing.
 
-    Args:
-        docker_ip: IP address for TCP connection to Docker containers.
-        oracle23c_service: ...
+
 
     Returns:
         Async SQLAlchemy engine instance.
@@ -67,17 +76,18 @@ async def oracle23c_async_engine(docker_ip: str, oracle23c_service: None) -> Asy
         "oracle+oracledb://:@",
         thick_mode=False,
         connect_args={
-            "user": "app",
-            "password": "super-secret",
-            "host": docker_ip,
-            "port": 1513,
-            "service_name": "FREEPDB1",
+            "user": oracle_user,
+            "password": oracle_password,
+            "host": oracle_docker_ip,
+            "port": oracle23c_port,
+            "service_name": oracle23c_service_name,
         },
         poolclass=NullPool,
     )
 
 
 @pytest.fixture(
+    scope="session",
     name="async_engine",
     params=[
         pytest.param(
@@ -100,7 +110,7 @@ def async_engine(request: FixtureRequest) -> AsyncEngine:
     return cast(AsyncEngine, request.getfixturevalue(request.param))
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 async def collection_queries(async_engine: AsyncEngine) -> AsyncGenerator[CollectionQueryManager, None]:
     async with AsyncSession(async_engine) as db_session:
         yield await anext(provide_collection_query_manager(db_session))

@@ -85,6 +85,7 @@ linting = [
     "types-six",
     "types-decorator",
     "types-pyyaml",
+    "types-setuptools",
     "asyncpg-stubs",
     "pyyaml>=6",
 ]
@@ -107,7 +108,7 @@ testing = [
     "pytest-sugar",
     "pytest-click",
     "pytest-xdist",
-    "pytest-databases @ git+https://github.com/litestar-org/pytest-databases@compose-project-name",
+    "pytest-databases",
 ]
 
 [project.scripts]
@@ -206,7 +207,7 @@ extra-dependencies = [
 features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
 lock-filename = "requirements/requirements-dev.txt"
 path = ".venv/"
-pip-compile-constraint = "docs"
+pip-compile-constraint = "default"
 python = "3.12"
 template = "test"
 type = "pip-compile"
@@ -468,7 +469,7 @@ line-length = 120
 ## Testing Tools
 
 [tool.pytest.ini_options]
-addopts = "-ra -q --doctest-glob='*.md'"
+addopts = "-n 2 --dist=loadfile -ra -q --doctest-glob='*.md'"
 filterwarnings = [
     "ignore::DeprecationWarning:aiosql.*",
     "ignore::DeprecationWarning:pkg_resources",

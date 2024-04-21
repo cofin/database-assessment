@@ -66,7 +66,6 @@ def package_standalone_app(options: argparse.Namespace) -> None:
             ],
             check=False,
             cwd=app_temp_dir,
-            # env=pyapp_configuration,
         )
         for suffix in ["", ".exe"]:
             from_path = Path(app_temp_dir, "bin", "pyapp").with_suffix(suffix)
