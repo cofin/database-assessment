@@ -168,7 +168,7 @@ type = "virtual"
 python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.test.scripts]
-cov = "pytest -n 3 --dist loadgroup --cov-report=term-missing --cov=src/dma --cov=tests {args}"
+cov = "pytest --cov-report=term-missing --cov=src/dma --cov=tests {args}"
 debug = "cov --no-cov -s --pdb --pdbcls=IPython.core.debugger:Pdb {args}"
 no-cov = "cov --no-cov {args}"
 
@@ -469,7 +469,7 @@ line-length = 120
 ## Testing Tools
 
 [tool.pytest.ini_options]
-addopts = "-n 2 --dist=loadfile -ra -q --doctest-glob='*.md'"
+addopts = "-n 2 --dist=loadgroup -ra -q --doctest-glob='*.md'"
 filterwarnings = [
     "ignore::DeprecationWarning:aiosql.*",
     "ignore::DeprecationWarning:pkg_resources",
