@@ -134,7 +134,7 @@ exclude = ["/.github", "/docs"]
 
 [tool.hatch.build.targets.app]
 # pyapp-version = "0.15.1"
-python-version = "3.12"
+python = "3.12"
 scripts = ["dma"]
 
 ##################
@@ -433,9 +433,11 @@ exclude_lines = [
 # Default environment with production dependencies
 [tool.hatch.envs.default]
 lock-filename = "requirements/requirements.txt"
+pip-compile-constraint = "default"
 pip-compile-hashes = false
 pip-compile-installer = "uv"
 pip-compile-resolver = "uv"
+python = "3.12"
 requires = ["hatch-pip-compile"]
 type = "pip-compile"
 
@@ -451,7 +453,7 @@ type = "virtual"
 
 # Test matrix for various Python versions replacing the functionality of tox
 [[tool.hatch.envs.test.matrix]]
-python-version = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.test.scripts]
 cov = "pytest -n 3 --dist loadgroup --cov-report=term-missing --cov=src/dma --cov=tests {args}"
@@ -494,7 +496,7 @@ features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing
 lock-filename = "requirements/requirements-dev.txt"
 path = ".venv/"
 pip-compile-constraint = "docs"
-python-version = "3.12"
+python = "3.12"
 template = "test"
 type = "pip-compile"
 
@@ -506,7 +508,7 @@ stop-infra = "docker-compose -f tests/docker-compose.yml down --remove-orphans -
 # Lint environment
 [tool.hatch.envs.lint]
 features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
-python-version = "3.12"
+python = "3.12"
 type = "virtual"
 
 [tool.hatch.envs.lint.scripts]
