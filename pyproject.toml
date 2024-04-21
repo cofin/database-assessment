@@ -79,20 +79,12 @@ dma = "dma.cli.main:app"
 # direct dependency references, e.g `pip @ git+https://github.com/pypa/pip.git@master`
 allow-direct-references = true
 
-[tool.hatch.version]
-path = "src/dma/__about__.py"
-
 [tool.hatch.build]
 dev-mode-dirs = ["src/"]
-packages = ["src/dma"]
 sources = ["src"]
 
 [tool.hatch.build.targets.sdist]
-exclude = [".github", "./docs"]
-support-legacy = true           # Create setup.py
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/dma"]
+exclude = ["/.github", "/docs"]
 
 [tool.hatch.build.targets.app]
 # pyapp-version = "0.15.1"

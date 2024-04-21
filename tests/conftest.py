@@ -28,6 +28,11 @@ pytest_plugins = [
 ]
 
 
+@pytest.fixture(scope="session")
+def compose_project_name() -> str:
+    return "dma-test"
+
+
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
