@@ -100,7 +100,8 @@ jobs:
       CARGO: cargo
       CARGO_BUILD_TARGET: ${{ matrix.job.target }}
       PYAPP_REPO: pyapp
-      PYAPP_VERSION: v0.15.1
+      PYAPP_VERSION: v0.16.0
+      PYAPP_PROJECT_FEATURES: oracle,postgres,mssql,mysql,server,remote
 
     steps:
     - name: Checkout code

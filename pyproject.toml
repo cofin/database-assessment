@@ -1,6 +1,4 @@
-[build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling", "hatch-pip-compile", "nodeenv"]
+
 
 ####################
 # Project Metadata #
@@ -60,12 +58,57 @@ Source = "https://github.com/cofin/goa"
 # Tracker = "https://github.com/cofin/goa/issues"
 
 [project.optional-dependencies]
+docs = [
+    "mkdocs-include-markdown-plugin",
+    "mkdocs-gen-files",
+    "mkdocs-literate-nav",
+    "mkdocs-minify-plugin>=0.5",
+    "mkdocs-section-index",
+    "mkdocs-git-revision-date-localized-plugin>=1.1",
+    "mkdocstrings[python]",
+    "mkdocs-redirects>=1.2",
+    "mkdocs-glightbox>=0.3.0",
+    "mike>=2.0.0",
+    # Extensions
+    "pymdown-extensions>=10.5",
+    # Necessary for syntax highlighting in code blocks
+    "pygments>=2.13",
+    # Validation
+    "linkchecker>=10.3",
+]
+linting = [
+    "mypy",
+    "ruff",
+    "pylint",
+    "pre-commit",
+    "types-click",
+    "types-six",
+    "types-decorator",
+    "types-pyyaml",
+    "asyncpg-stubs",
+    "pyyaml>=6",
+]
 mssql = ["aioodbc"]
 mysql = ["asyncmy>=0.2.9"]
 oracle = ["oracledb"]
 postgres = ["asyncpg>=0.29.0"]
 remote = ["pyinfra"]
 server = ["litestar[structlog,jinja]>=2.7.0", "litestar-granian>=0.2.3"]
+testing = [
+    "nodeenv",
+    # required test dependencies
+    "cython",
+    "anyio",
+    "coverage[toml]>=6.2",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-vcr",
+    "pytest-sugar",
+    "pytest-click",
+    "pytest-xdist",
+    "pytest-databases @ git+https://github.com/litestar-org/pytest-databases@compose-project-name",
+]
 
 [project.scripts]
 dma = "dma.cli.main:app"
@@ -74,6 +117,9 @@ dma = "dma.cli.main:app"
 # Build & Versioning #
 ######################
 
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling", "hatch-pip-compile", "nodeenv"]
 
 [tool.hatch.metadata]
 # direct dependency references, e.g `pip @ git+https://github.com/pypa/pip.git@master`
@@ -290,7 +336,7 @@ ban-relative-imports = "all"
 "src/dma/lib/db/adapters/*.py" = ["ANN001", "ANN201", "ANN204", "PLR6301"]
 
 # copyright
-"**/*.py" = ["CPY001"]
+"**/*.py" = ["CPY001", 'RUF029']
 
 [tool.ruff.lint.mccabe]
 max-complexity = 12
@@ -344,7 +390,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-concurrency = ["multiprocessing", "thread"]
+concurrency = ["multiprocessing"]
 omit = [
     "_version.py",          # automatically created by hatch-vcs, not in repo
     "src/dma/__about__.py",
@@ -399,24 +445,7 @@ upgrade-pkg = "PIP_COMPILE_UPGRADE='{args}' hatch env run --env {env_name} -- py
 
 # Test environment with test-only dependencies
 [tool.hatch.envs.test]
-extra-dependencies = [
-    "nodeenv",
-    # required test dependencies
-    "cython",
-    "anyio",
-    "coverage[toml]>=6.2",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-vcr",
-    "pytest-sugar",
-    "pytest-click",
-    "pytest-xdist",
-    "pytest-databases",
-]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
-# lock-filename = "requirements/requirements-{env_name}.txt"
-# pip-compile-constraint = "default"
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing"]
 template = "default"
 type = "virtual"
 
@@ -425,54 +454,16 @@ type = "virtual"
 python-version = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.test.scripts]
-cov = "pytest -n auto --dist loadgroup --cov-report=term-missing --cov-config=pyproject.toml --cov=src/dma --cov=tests {args}"
+cov = "pytest -n 3 --dist loadgroup --cov-report=term-missing --cov=src/dma --cov=tests {args}"
 debug = "cov --no-cov -s --pdb --pdbcls=IPython.core.debugger:Pdb {args}"
 no-cov = "cov --no-cov {args}"
 
 
 # Docs environment
 [tool.hatch.envs.docs]
-extra-dependencies = [
-    # tests
-    "nodeenv",
-    # required test dependencies
-    "cython",
-    "anyio",
-    "coverage[toml]>=6.2",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-vcr",
-    "pytest-sugar",
-    "pytest-click",
-    "pytest-xdist",
-    "pytest-databases",
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.4",
-    # Plugins
-    "mkdocs-include-markdown-plugin",
-    "mkdocs-gen-files",
-    "mkdocs-literate-nav",
-    "mkdocs-minify-plugin>=0.5",
-    "mkdocs-section-index",
-    "mkdocs-git-revision-date-localized-plugin>=1.1",
-    "mkdocstrings[python]",
-    "mkdocs-redirects>=1.2",
-    "mkdocs-glightbox>=0.3.0",
-    "mike>=2.0.0",
-    # Extensions
-    "pymdown-extensions>=10.5",
-    # Necessary for syntax highlighting in code blocks
-    "pygments>=2.13",
-    # Validation
-    "linkchecker>=10.3",
-]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
-lock-filename = "requirements/requirements-docs.txt"
-pip-compile-constraint = "default"
-python-version = "3.12"
-template = "test"
-type = "pip-compile"
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs"]
+template = "default"
+type = "virtual"
 
 [tool.hatch.envs.docs.env-vars]
 MKDOCS_CONFIG = "mkdocs.yml"
@@ -491,61 +482,15 @@ build-check = ["build", "validate"]
 [tool.hatch.envs.local]
 extra-dependencies = [
     "bump2version",
-    # tests
-    "nodeenv",
-    # required test dependencies
-    "cython",
-    "anyio",
-    "coverage[toml]>=6.2",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-vcr",
-    "pytest-sugar",
-    "pytest-click",
-    "pytest-xdist",
-    "pytest-databases",
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.4",
-    # Plugins
-    "mkdocs-include-markdown-plugin",
-    "mkdocs-gen-files",
-    "mkdocs-literate-nav",
-    "mkdocs-minify-plugin>=0.5",
-    "mkdocs-section-index",
-    "mkdocs-git-revision-date-localized-plugin>=1.1",
-    "mkdocstrings[python]",
-    "mkdocs-redirects>=1.2",
-    "mkdocs-glightbox>=0.3.0",
-    "mike>=2.0.0",
-    # Extensions
-    "pymdown-extensions>=10.5",
-    # Necessary for syntax highlighting in code blocks
-    "pygments>=2.13",
-    # Validation
-    "linkchecker>=10.3",
     # cli databasae brwoser
     "harlequin",
-    # linting
-    "cython",
-    "anyio",
-    "mypy",
-    "ruff",
-    "pylint",
-    "pre-commit",
-    "types-click",
-    "types-six",
-    "types-decorator",
-    "types-pyyaml",
-    "asyncpg-stubs",
-    # extras
     "jupyterlab",
     "ipython",
     "seaborn",
     "pandas",
 
 ]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
 lock-filename = "requirements/requirements-dev.txt"
 path = ".venv/"
 pip-compile-constraint = "docs"
@@ -560,23 +505,9 @@ stop-infra = "docker-compose -f tests/docker-compose.yml down --remove-orphans -
 
 # Lint environment
 [tool.hatch.envs.lint]
-detached = true
-extra-dependencies = [
-    "pyyaml>=6",
-    "cython",
-    "anyio",
-    "mypy",
-    "ruff",
-    "pylint",
-    "pre-commit",
-    "types-click",
-    "types-six",
-    "types-decorator",
-    "types-pyyaml",
-    "asyncpg-stubs",
-]
-features = ["server", "remote", "oracle", "mysql", "mssql", "postgres"]
+features = ["server", "remote", "oracle", "mysql", "mssql", "postgres", "testing", "docs", "linting"]
 python-version = "3.12"
+type = "virtual"
 
 [tool.hatch.envs.lint.scripts]
 check = ["style", "typing"]

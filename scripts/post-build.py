@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-PYAPP_VERSION = "v0.16.1"
+PYAPP_VERSION = "v0.16.0"
 PYAPP_URL = f"https://github.com/ofek/pyapp/releases/download/{PYAPP_VERSION}/source.tar.gz"
 PROJECT_ROOT = Path(__file__).parent.parent
 logging.basicConfig(
