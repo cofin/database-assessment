@@ -22,16 +22,6 @@ defaults:
 
 env:
   STABLE_PYTHON_VERSION: "3.12"
-  CIBW_BUILD_FRONTEND: build
-  CIBW_ENVIRONMENT_PASS_LINUX: >
-    HATCH_BUILD_HOOKS_ENABLE
-  CIBW_TEST_COMMAND: >
-    python -c
-    "from hatch_showcase.fib import fibonacci;
-    assert fibonacci(32) == 2178309
-    "
-  CIBW_SKIP: >
-    pp*
 
 jobs:
   collection-scripts:
@@ -52,31 +42,6 @@ jobs:
             name: artifacts
             path: dist/*.zip
             if-no-files-found: error
-  binary-wheels-standard:
-    name: Binary wheels for ${{ startsWith(matrix.os, 'macos-') && 'macOS' || startsWith(matrix.os, 'windows-') && 'Windows' || 'Linux' }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        # Fetch all tags
-        fetch-depth: 0
-
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.11.4
-      env:
-        CIBW_ARCHS_MACOS: x86_64
-        HATCH_BUILD_HOOKS_ENABLE: 'true'
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: artifacts
-        path: wheelhouse/*.whl
-        if-no-files-found: error
 
   pure-python-wheel-and-sdist:
     name: Build a pure Python wheel and source distribution
@@ -100,40 +65,8 @@ jobs:
         path: dist/*
         if-no-files-found: error
 
-  binary-wheels-arm:
-    name: Build Linux wheels for ARM
-    runs-on: ubuntu-latest
-    # Very slow, no need to run on PRs
-    if: >
-      github.event_name == 'push'
-      &&
-      (github.ref == 'refs/heads/master' || startsWith(github.event.ref, 'refs/tags'))
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        # Fetch all tags
-        fetch-depth: 0
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
-      with:
-        platforms: arm64
-
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.11.4
-      env:
-        CIBW_ARCHS_LINUX: aarch64
-        HATCH_BUILD_HOOKS_ENABLE: 'true'
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: artifacts
-        path: wheelhouse/*.whl
-        if-no-files-found: error
-
   build-binaries:
-    name: ${{ matrix.job.target }} (${{ matrix.job.os }})
+    name: Build binary application for ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -221,9 +154,7 @@ jobs:
     name: Publish release
     needs:
     - collection-scripts
-    - binary-wheels-standard
     - pure-python-wheel-and-sdist
-    - binary-wheels-arm
     - build-binaries
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')

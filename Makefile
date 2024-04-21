@@ -51,7 +51,7 @@ install: 										## Install the project and all dependencies
 	@echo "=> Creating Python environments..."
 	@$(MAKE) configure-hatch
 	@hatch env create local
-	@if [ "$(USING_NPM)" ]; then echo "=> Installing NPM packages..."; hatch run local:python3 scripts/pre_build.py --install-packages && hatch run local:npm config set fund false; fi
+	@if [ "$(USING_NPM)" ]; then echo "=> Installing NPM packages..."; hatch run local:python3 scripts/pre-build.py --install-packages && hatch run local:npm config set fund false; fi
 	@echo "=> Install complete! Note: If you want to re-install re-run 'make install'"
 
 
@@ -177,8 +177,9 @@ package-collector:
 
 .PHONY: build
 build: clean        ## Build and package the collectors
+	@$(MAKE) build-collector
 	@echo "=> Building assets..."
-	@if [ "$(USING_NPM)" ]; then echo "=> Building assets..."; hatch run local:python3 scripts/pre_build.py --build-assets; fi
+	@if [ "$(USING_NPM)" ]; then echo "=> Building assets..."; hatch run local:python3 scripts/pre-build.py --build-assets; fi
 	@echo "=> Building package..."
 	@hatch build
 	@echo "=> Package build complete..."

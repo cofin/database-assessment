@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-PYAPP_VERSION = "v0.15.1"
+PYAPP_VERSION = "v0.16.1"
 PYAPP_URL = f"https://github.com/ofek/pyapp/releases/download/{PYAPP_VERSION}/source.tar.gz"
 PROJECT_ROOT = Path(__file__).parent.parent
 logging.basicConfig(
@@ -29,14 +29,10 @@ def package_standalone_app(options: argparse.Namespace) -> None:
     logger.info("PYAPP_PROJECT_PATH is set to %s", os.fspath(Path(options.wheel_file).absolute()))
     pyapp_configuration = {
         "PYAPP_PROJECT_PATH": str(Path(options.wheel_file).absolute()),
-        # "PYAPP_PROJECT_DEPENDENCY_FILE": str(Path(PROJECT_ROOT / "dist/requirements.txt").absolute()),
-        # "PYAPP_PROJECT_NAME": "app",
-        # "PYAPP_PROJECT_VERSION": "0.2.0",
-        # "PYAPP_EXEC_MODULE": "app",
         "PYAPP_PYTHON_VERSION": "3.11",
         "PYAPP_DISTRIBUTION_EMBED": "1",
         "PYAPP_FULL_ISOLATION": "1",
-        "PYAPP_EXEC_SPEC": "app.__main__:run_cli",
+        "PYAPP_EXEC_SPEC": "dma.__main__:run_cli",
         "RUST_BACKTRACE": "full",
         "CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG": "true",
         "PATH": os.environ["PATH"],
@@ -72,25 +68,6 @@ def package_standalone_app(options: argparse.Namespace) -> None:
             cwd=app_temp_dir,
             # env=pyapp_configuration,
         )
-        # subprocess.run(
-        #     [
-        #         "/usr/bin/env",
-        #         "cargo",
-        #         "install",
-        #         "--path",
-        #         app_temp_dir,
-        #         # "--git",
-        #         # "https://github.com/ofek/pyapp",
-        #         # "--tag",
-        #         # PYAPP_VERSION,
-        #         "--force",
-        #         "--root",
-        #         app_temp_dir,
-        #     ],
-        #     env=pyapp_configuration,
-        #     check=True,
-        # )
-
         for suffix in ["", ".exe"]:
             from_path = Path(app_temp_dir, "bin", "pyapp").with_suffix(suffix)
             if not from_path.exists():

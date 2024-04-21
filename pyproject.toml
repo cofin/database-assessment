@@ -12,6 +12,7 @@ license = { text = "MIT" }
 name = "dma"
 readme = "README.md"
 requires-python = ">=3.9,<3.13"
+version = "5.0.0"
 
 # keywords for easier look-up on PyPI
 authors = [{ name = "Cody Fincher", email = "cody.fincher@gmail.com" }]
@@ -51,7 +52,6 @@ dependencies = [
     "msgspec",
     "greenlet; sys_platform == \"darwin\"",
 ]
-dynamic = ["version"]
 
 [project.urls]
 # important URLs for this project
