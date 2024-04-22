@@ -51,7 +51,7 @@ async def readiness_check(
             readiness_check.import_to_table(extended_collection)
 
             # transform data
-            await readiness_check.process()
+            await readiness_check.process_collection()
             # print summary
             readiness_check.print_summary()
         await async_engine.dispose()

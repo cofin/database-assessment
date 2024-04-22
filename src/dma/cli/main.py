@@ -4,6 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING, Literal
 
 from rich import prompt
+from rich.table import Table
 
 from dma.cli._utils import RICH_CLICK_INSTALLED, console
 
@@ -131,6 +132,10 @@ def collect_data(
     """Process a collection of advisor extracts."""
     from dma.collector import tasks as collector_tasks  # noqa: PLC0415
 
+    table = Table(show_header=False)
+    table.add_column("title", style="cyan", width=80)
+    table.add_row("Google Database Migration Assessment")
+    console.print(table)
     console.rule("Starting data collection process", align="left")
 
     if hostname is None:
@@ -243,6 +248,10 @@ def readiness_check(
     """Process a collection of advisor extracts."""
     from dma.collector import tasks as collector_tasks  # noqa: PLC0415
 
+    table = Table(show_header=False)
+    table.add_column("title", style="cyan", width=80)
+    table.add_row("Google Database Migration Assessment")
+    console.print(table)
     console.rule("Starting readiness check process", align="left")
     if hostname is None:
         hostname = prompt.Prompt.ask("Please enter a hostname for the database")
