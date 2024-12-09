@@ -1,0 +1,53 @@
+/*
+PostgreSQL Database Configuration Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header
+SELECT 'pkey',
+       'database_name',
+       'encoding',
+       'collate',
+       'ctype',
+       'is_template',
+       'allow_connections',
+       'connection_limit',
+       'size_bytes',
+       'size_pretty',
+       'tablespace',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Database Information
+WITH db_sizes AS (
+    SELECT d.oid,
+           pg_database_size(d.oid) AS size_bytes,
+           pg_size_pretty(pg_database_size(d.oid)) AS size_pretty
+    FROM pg_database d
+)
+SELECT :'pkey' AS pkey,
+       d.datname AS database_name,
+       pg_encoding_to_char(d.encoding) AS encoding,
+       d.datcollate AS collate,
+       d.datctype AS ctype,
+       d.datistemplate AS is_template,
+       d.datallowconn AS allow_connections,
+       d.datconnlimit AS connection_limit,
+       s.size_bytes,
+       s.size_pretty,
+       t.spcname AS tablespace,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_database d
+JOIN db_sizes s ON d.oid = s.oid
+LEFT JOIN pg_tablespace t ON d.dattablespace = t.oid
+WHERE d.datname = current_database();

@@ -1,0 +1,1 @@
+pkey|dma_source_id|dma_manual_id|schema_name|table_name|row_count|total_size|table_size|index_size|toast_size|table_bloat_size|index_bloat_size|has_primary_key|is_partitioned|partition_strategy|parent_table

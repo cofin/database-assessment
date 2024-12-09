@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# Input validation utilities for Oracle collection scripts
+
+# {{ google_license }}
+
+### Required Parameter Validation
+#############################################################################
+validate_required_params() {
+    local missing_params=()
+
+    # Required connection parameters
+    [[ -z "${HOST:-}" ]] && missing_params+=("host (-H, --host)")
+    [[ -z "${PORT:-}" ]] && missing_params+=("port (-P, --port)")
+    [[ -z "${SERVICE_NAME:-}" ]] && missing_params+=("service (-S, --service)")
+    [[ -z "${USERNAME:-}" ]] && missing_params+=("username (-U, --username)")
+    [[ -z "${DBNAME:-}" ]] && missing_params+=("database (-d, --dbname)")
+
+    if (( ${#missing_params[@]} > 0 )); then
+        log_error "Missing required parameters: ${missing_params[*]}"
+        return 1
+    fi
+
+    return 0
+}
+
+### Environment Validation
+#############################################################################
+validate_oracle_env() {
+    local missing_vars=()
+
+    # Check Oracle environment variables
+    [[ -z "${ORACLE_HOME:-}" ]] && missing_vars+=("ORACLE_HOME")
+    [[ -z "${TNS_ADMIN:-}" ]] && missing_vars+=("TNS_ADMIN")
+
+    if (( ${#missing_vars[@]} > 0 )); then
+        log_warning "Missing Oracle environment variables: ${missing_vars[*]}"
+        log_warning "Some features may be limited"
+    fi
+
+    # Validate ORACLE_HOME directory
+    if [[ -n "${ORACLE_HOME:-}" ]] && [[ ! -d "${ORACLE_HOME}" ]]; then
+        log_error "Invalid ORACLE_HOME directory: ${ORACLE_HOME}"
+        return 1
+    fi
+
+    return 0
+}
+
+### Command Validation
+#############################################################################
+validate_commands() {
+    local required_commands=(
+        "sqlplus"
+        "grep"
+        "awk"
+        "sed"
+    )
+
+    if ! check_required_commands "${required_commands[@]}"; then
+        return 1
+    fi
+
+    return 0
+}
+
+### Directory Validation
+#############################################################################
+validate_directories() {
+    local dirs=(
+        "${OUTPUT_DIR}"
+        "${TMP_DIR}"
+        "${LOG_DIR}"
+        "${SQL_DIR}"
+    )
+
+    for dir in "${dirs[@]}"; do
+        if [[ ! -d "${dir}" ]]; then
+            log_error "Required directory not found: ${dir}"
+            return 1
+        fi
+
+        if [[ ! -w "${dir}" ]]; then
+            log_error "Directory not writable: ${dir}"
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+### SQL Script Validation
+#############################################################################
+validate_sql_scripts() {
+    local missing_scripts=()
+
+    # Core SQL scripts
+    local required_scripts=(
+        "version.sql"
+        "database_info.sql"
+        "table_info.sql"
+        "index_info.sql"
+        "performance_stats.sql"
+        "security_info.sql"
+        "storage_info.sql"
+        "extension_info.sql"
+    )
+
+    for script in "${required_scripts[@]}"; do
+        if [[ ! -f "${SQL_DIR}/${script}" ]]; then
+            missing_scripts+=("${script}")
+        fi
+    done
+
+    if (( ${#missing_scripts[@]} > 0 )); then
+        log_error "Missing required SQL scripts: ${missing_scripts[*]}"
+        return 1
+    fi
+
+    return 0
+}
+
+### Port Validation
+#############################################################################
+validate_port() {
+    local port="$1"
+
+    if ! [[ "${port}" =~ ^[0-9]+$ ]] || \
+       (( port < 1 )) || \
+       (( port > 65535 )); then
+        log_error "Invalid port number: ${port}"
+        return 1
+    fi
+
+    return 0
+}
+
+### Service Name Validation
+#############################################################################
+validate_service_name() {
+    local service="$1"
+
+    if [[ ! "${service}" =~ ^[a-zA-Z0-9_\.\-]+$ ]]; then
+        log_error "Invalid service name: ${service}"
+        return 1
+    fi
+
+    return 0
+}
+
+### Username Validation
+#############################################################################
+validate_username() {
+    local username="$1"
+
+    if [[ ! "${username}" =~ ^[a-zA-Z0-9_\#\$]+$ ]]; then
+        log_error "Invalid username: ${username}"
+        return 1
+    fi
+
+    return 0
+}
+
+### All Validations
+#############################################################################
+validate_requirements() {
+    local validation_errors=0
+
+    # Validate required parameters
+    if ! validate_required_params; then
+        ((validation_errors++))
+    fi
+
+    # Validate Oracle environment
+    if ! validate_oracle_env; then
+        ((validation_errors++))
+    fi
+
+    # Validate required commands
+    if ! validate_commands; then
+        ((validation_errors++))
+    fi
+
+    # Validate directories
+    if ! validate_directories; then
+        ((validation_errors++))
+    fi
+
+    # Validate SQL scripts
+    if ! validate_sql_scripts; then
+        ((validation_errors++))
+    fi
+
+    # Validate port number
+    if ! validate_port "${PORT}"; then
+        ((validation_errors++))
+    fi
+
+    # Validate service name
+    if ! validate_service_name "${SERVICE_NAME}"; then
+        ((validation_errors++))
+    fi
+
+    # Validate username
+    if ! validate_username "${USERNAME}"; then
+        ((validation_errors++))
+    fi
+
+    if (( validation_errors > 0 )); then
+        log_error "Validation failed with ${validation_errors} error(s)"
+        return 1
+    fi
+
+    return 0
+}
+
+### Initialization Complete
+#############################################################################
+log_debug "Validation utilities loaded"

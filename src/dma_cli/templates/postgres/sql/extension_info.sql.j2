@@ -1,0 +1,191 @@
+/*
+PostgreSQL Extension and Custom Type Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header: Installed Extensions
+SELECT 'pkey',
+       'extension_name',
+       'schema_name',
+       'version',
+       'installed_version',
+       'comment',
+       'relocatable',
+       'requires',
+       'config_params',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Extension Information
+WITH RECURSIVE
+extension_deps AS (
+    SELECT e.oid,
+           string_agg(r.extname, ', ' ORDER BY r.extname) AS requires
+    FROM pg_extension e
+    LEFT JOIN pg_depend d ON d.refobjid = e.oid
+    LEFT JOIN pg_extension r ON r.oid = d.objid
+    WHERE d.deptype = 'e'
+    GROUP BY e.oid
+),
+extension_config AS (
+    SELECT e.oid,
+           string_agg(
+               format('%s=%s', k.key, k.value),
+               ', ' ORDER BY k.key
+           ) AS config_params
+    FROM pg_extension e,
+    LATERAL (
+        SELECT *
+        FROM each(e.extconfig)
+    ) k
+    GROUP BY e.oid
+)
+SELECT :'pkey' AS pkey,
+       e.extname AS extension_name,
+       n.nspname AS schema_name,
+       e.extversion AS version,
+       current_setting(format('%s.version', e.extname), true) AS installed_version,
+       d.description AS comment,
+       e.extrelocatable AS relocatable,
+       COALESCE(ed.requires, '') AS requires,
+       COALESCE(ec.config_params, '') AS config_params,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_extension e
+JOIN pg_namespace n ON n.oid = e.extnamespace
+LEFT JOIN pg_description d ON d.objoid = e.oid AND d.classoid = 'pg_extension'::regclass
+LEFT JOIN extension_deps ed ON ed.oid = e.oid
+LEFT JOIN extension_config ec ON ec.oid = e.oid
+ORDER BY e.extname;
+
+-- Header: Available Extensions
+SELECT 'pkey',
+       'name',
+       'default_version',
+       'installed_version',
+       'comment',
+       'schema_name',
+       'relocatable',
+       'superuser',
+       'trusted',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Available Extensions
+SELECT :'pkey' AS pkey,
+       name,
+       default_version,
+       installed_version,
+       comment,
+       COALESCE(n.nspname, '') AS schema_name,
+       relocatable,
+       superuser,
+       trusted,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_available_extensions e
+LEFT JOIN pg_extension i ON i.extname = e.name
+LEFT JOIN pg_namespace n ON n.oid = i.extnamespace
+ORDER BY name;
+
+-- Header: Custom Types
+SELECT 'pkey',
+       'schema_name',
+       'type_name',
+       'type_category',
+       'type_type',
+       'input_function',
+       'output_function',
+       'receive_function',
+       'send_function',
+       'type_modifier_input',
+       'type_modifier_output',
+       'analyze_function',
+       'subscript_function',
+       'internallength',
+       'is_passedbyvalue',
+       'alignment',
+       'storage',
+       'element_type',
+       'delimiter',
+       'default_value',
+       'category',
+       'is_preferred',
+       'owner',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Custom Type Information
+SELECT :'pkey' AS pkey,
+       n.nspname AS schema_name,
+       t.typname AS type_name,
+       CASE t.typcategory
+           WHEN 'A' THEN 'Array'
+           WHEN 'B' THEN 'Boolean'
+           WHEN 'C' THEN 'Composite'
+           WHEN 'D' THEN 'Date/Time'
+           WHEN 'E' THEN 'Enum'
+           WHEN 'G' THEN 'Geometric'
+           WHEN 'I' THEN 'Network Address'
+           WHEN 'N' THEN 'Numeric'
+           WHEN 'P' THEN 'Pseudo-Type'
+           WHEN 'R' THEN 'Range'
+           WHEN 'S' THEN 'String'
+           WHEN 'T' THEN 'Timespan'
+           WHEN 'U' THEN 'User-Defined'
+           WHEN 'V' THEN 'Bit-String'
+           ELSE t.typcategory::text
+       END AS type_category,
+       CASE t.typtype
+           WHEN 'b' THEN 'base'
+           WHEN 'c' THEN 'composite'
+           WHEN 'd' THEN 'domain'
+           WHEN 'e' THEN 'enum'
+           WHEN 'p' THEN 'pseudo'
+           WHEN 'r' THEN 'range'
+           ELSE t.typtype::text
+       END AS type_type,
+       i.proname AS input_function,
+       o.proname AS output_function,
+       r.proname AS receive_function,
+       s.proname AS send_function,
+       m.proname AS type_modifier_input,
+       mo.proname AS type_modifier_output,
+       a.proname AS analyze_function,
+       sub.proname AS subscript_function,
+       t.typlen AS internallength,
+       t.typbyval AS is_passedbyvalue,
+       t.typalign AS alignment,
+       t.typstorage AS storage,
+       et.typname AS element_type,
+       t.typdelim AS delimiter,
+       t.typdefault AS default_value,
+       t.typcategory AS category,
+       t.typispreferred AS is_preferred,
+       pg_get_userbyid(t.typowner) AS owner,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_type t
+JOIN pg_namespace n ON n.oid = t.typnamespace
+LEFT JOIN pg_proc i ON i.oid = t.typinput
+LEFT JOIN pg_proc o ON o.oid = t.typoutput
+LEFT JOIN pg_proc r ON r.oid = t.typreceive
+LEFT JOIN pg_proc s ON s.oid = t.typsend
+LEFT JOIN pg_proc m ON m.oid = t.typmodin
+LEFT JOIN pg_proc mo ON mo.oid = t.typmodout
+LEFT JOIN pg_proc a ON a.oid = t.typanalyze
+LEFT JOIN pg_proc sub ON sub.oid = t.typsubscript
+LEFT JOIN pg_type et ON et.oid = t.typelem
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND n.nspname !~ '^pg_toast'
+  AND t.typtype NOT IN ('p')  -- Exclude pseudo-types
+ORDER BY n.nspname, t.typname;

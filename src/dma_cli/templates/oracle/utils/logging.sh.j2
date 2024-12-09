@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Logging utilities for Oracle collection scripts
+
+# {{ google_license }}
+
+### Logging Configuration
+#############################################################################
+# Default to non-verbose logging
+VERBOSE=${VERBOSE:-0}
+
+# Log file setup
+LOG_FILE="${LOG_DIR}/collection_$(date -u '+%Y%m%d_%H%M%S').log"
+touch "${LOG_FILE}"
+
+### Logging Functions
+#############################################################################
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+    echo "[${timestamp}] [${level}] ${message}" | tee -a "${LOG_FILE}"
+}
+
+log_debug() {
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        log_message "DEBUG" "$1"
+    fi
+}
+
+log_info() {
+    log_message "INFO" "$1"
+}
+
+log_warning() {
+    log_message "WARNING" "$1" >&2
+}
+
+log_error() {
+    log_message "ERROR" "$1" >&2
+}
+
+log_sql() {
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        log_message "SQL" "$1"
+    fi
+}
+
+### Oracle Specific Logging
+#############################################################################
+log_oracle_error() {
+    local error_code="$1"
+    local error_message="$2"
+    log_error "Oracle Error [ORA-${error_code}]: ${error_message}"
+}
+
+log_sqlplus_output() {
+    local output="$1"
+    if [[ -n "${output}" ]]; then
+        while IFS= read -r line; do
+            if [[ "${line}" =~ ^ORA-[0-9]+ ]]; then
+                log_error "${line}"
+            elif [[ "${line}" =~ ^SP2-[0-9]+ ]]; then
+                log_error "SQLPlus Error: ${line}"
+            elif [[ "${VERBOSE}" -eq 1 ]]; then
+                log_debug "${line}"
+            fi
+        done <<< "${output}"
+    fi
+}
+
+### Progress Reporting
+#############################################################################
+start_operation() {
+    local operation="$1"
+    log_info "Starting: ${operation}"
+}
+
+end_operation() {
+    local operation="$1"
+    local status="${2:-completed}"
+    log_info "Operation ${operation} ${status}"
+}
+
+### Error Reporting
+#############################################################################
+log_error_details() {
+    local error_msg="$1"
+    local error_code="${2:-1}"
+    local stack_trace
+
+    log_error "${error_msg} (Error Code: ${error_code})"
+
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        stack_trace=$(caller)
+        log_debug "Stack trace: ${stack_trace}"
+    fi
+}
+
+### SQL Execution Logging
+#############################################################################
+log_sql_execution() {
+    local sql_file="$1"
+    local start_time="$2"
+    local end_time="$3"
+    local duration=$((end_time - start_time))
+
+    log_debug "SQL execution completed:"
+    log_debug "  File: ${sql_file}"
+    log_debug "  Duration: ${duration} seconds"
+}
+
+### Connection Logging
+#############################################################################
+log_connection_info() {
+    log_debug "Connection parameters:"
+    log_debug "  Host: ${HOST}"
+    log_debug "  Port: ${PORT}"
+    log_debug "  Service: ${SERVICE_NAME}"
+    log_debug "  Database: ${DBNAME}"
+    log_debug "  User: ${USERNAME}"
+}
+
+### Initialization Complete
+#############################################################################
+log_debug "Logging utilities loaded"

@@ -1,0 +1,72 @@
+# Oracle Collection Troubleshooting Guide
+Generated: {{ generation_date }}
+
+## Common Issues
+
+### Connection Problems
+
+#### ORA-12541: TNS:no listener
+- Verify listener is running: `lsnrctl status`
+- Check TNS_ADMIN setting
+- Verify hostname and port
+- Test with: `tnsping <service_name>`
+
+#### ORA-01017: invalid username/password
+- Verify credentials
+- Check account lock status: `SELECT username, account_status FROM dba_users`
+- Test with: `sqlplus <username>/<password>@<connection_string>`
+
+#### ORA-12514: service name not found
+- Verify service name in tnsnames.ora
+- Check listener.ora configuration
+- Run: `lsnrctl services` to list available services
+
+### Permission Issues
+
+#### ORA-00942: table or view does not exist
+Required grants:
+```sql
+GRANT SELECT ANY DICTIONARY TO <username>;
+GRANT SELECT_CATALOG_ROLE TO <username>;
+```
+
+#### ORA-01031: insufficient privileges
+Minimum required roles:
+- SELECT_CATALOG_ROLE
+- SELECT ANY DICTIONARY
+- SELECT ANY TABLE
+
+### Performance Considerations
+
+#### Slow Collection
+- Increase ARRAY_SIZE in sqlplus settings
+- Check for system resource contention
+- Monitor with: `SELECT sid, event, wait_class FROM v$session_wait`
+
+#### Resource Usage
+- Monitor temp space usage
+- Check PGA memory allocation
+- Review active sessions: `SELECT * FROM v$session WHERE status = 'ACTIVE'`
+
+### Environment Issues
+
+#### ORACLE_HOME not set
+```bash
+export ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+export PATH=$ORACLE_HOME/bin:$PATH
+```
+
+#### TNS_ADMIN not found
+```bash
+export TNS_ADMIN=$ORACLE_HOME/network/admin
+# Or specify custom location
+export TNS_ADMIN=/path/to/custom/admin
+```
+
+### Data Collection Issues
+
+#### Missing or Incomplete Data
+- Check user privileges
+- Verify view access
+- Review collection logs
+- Monitor for session timeouts

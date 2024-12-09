@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Oracle-specific utility functions
+
+# {{ google_license }}
+
+### Oracle Connection Management
+#############################################################################
+# Build connection string
+build_connection_string() {
+    local conn_str="${USERNAME}/${PASSWORD}@"
+
+    # Use EZ Connect if no TNS_ADMIN or tnsnames.ora
+    if [[ -z "${TNS_ADMIN}" ]] || [[ ! -f "${TNS_ADMIN}/tnsnames.ora" ]]; then
+        conn_str+="//${HOST}:${PORT}/${SERVICE_NAME}"
+    else
+        conn_str+="${SERVICE_NAME}"
+    fi
+
+    echo "${conn_str}"
+}
+
+# Test database connection
+test_connection() {
+    local conn_str
+    conn_str=$(build_connection_string)
+    local sql="SELECT 1 FROM dual;"
+
+    log_debug "Testing connection with: ${SQLCMD} ${SQLPLUS_OPTS}"
+
+    if ! echo "${sql}" | ${SQLCMD} ${SQLPLUS_OPTS} "${conn_str}" > /dev/null 2>&1; then
+        return 1
+    fi
+
+    return 0
+}
+
+### Version Management
+#############################################################################
+get_oracle_version() {
+    local conn_str
+    conn_str=$(build_connection_string)
+    local sql="SELECT version FROM v\$instance;"
+
+    echo "${sql}" | ${SQLCMD} ${SQLPLUS_OPTS} "${conn_str}" | grep -v '^$' | head -1
+}
+
+is_supported_version() {
+    local version="$1"
+    local major_version
+    major_version=$(echo "${version}" | cut -d'.' -f1)
+
+    for supported in "${SUPPORTED_VERSIONS[@]}"; do
+        if [[ "${major_version}" == "${supported}" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+### SQL Execution
+#############################################################################
+execute_sql_script() {
+    local sql_file="$1"
+    local output_base="$2"
+    local start_time
+    start_time=$(date +%s)
+
+    local conn_str
+    conn_str=$(build_connection_string)
+    local output_file="${OUTPUT_DIR}/${output_base}.csv"
+    local error_file="${TMP_DIR}/${output_base}.err"
+    local sql_path="${SQL_DIR}/${sql_file}"
+
+    log_debug "Executing SQL script: ${sql_file}"
+    log_debug "Output file: ${output_file}"
+
+    # Prepare SQL*Plus environment
+    local sqlplus_setup="
+        SET ECHO OFF
+        SET FEEDBACK OFF
+        SET HEADING OFF
+        SET LINESIZE 32767
+        SET LONG 1000000
+        SET LONGCHUNKSIZE 1000000
+        SET PAGESIZE 0
+        SET SERVEROUTPUT OFF
+        SET TERMOUT OFF
+        SET TIMING OFF
+        SET TRIMOUT ON
+        SET TRIMSPOOL ON
+        SET VERIFY OFF
+        WHENEVER SQLERROR EXIT SQL.SQLCODE
+        WHENEVER OSERROR EXIT 9
+
+        DEFINE pkey = '${COLLECTION_TAG}'
+        DEFINE dma_source_id = '${DMA_SOURCE_ID:-}'
+        DEFINE dma_manual_id = '${DMA_MANUAL_ID:-}'
+
+        SPOOL '${output_file}'
+    "
+
+    # Execute SQL script
+    if ! (echo "${sqlplus_setup}" && cat "${sql_path}") | \
+         ${SQLCMD} ${SQLPLUS_OPTS} "${conn_str}" > "${error_file}" 2>&1; then
+        local rc=$?
+        log_error "SQL execution failed with exit code ${rc}"
+        log_sqlplus_output "$(cat "${error_file}")"
+        return 1
+    fi
+
+    # Check for errors in output
+    if grep -q '^ORA-' "${error_file}"; then
+        log_sqlplus_output "$(cat "${error_file}")"
+        return 1
+    fi
+
+    local end_time
+    end_time=$(date +%s)
+    log_sql_execution "${sql_file}" "${start_time}" "${end_time}"
+
+    return 0
+}
+
+### Performance Optimization
+#############################################################################
+optimize_sqlplus_settings() {
+    local array_size
+    array_size=$(adjust_array_size)
+
+    # Export settings as environment variables
+    export NLS_NUMERIC_CHARACTERS='.,'
+    export SQLPLUS_ARRAYSIZE="${array_size}"
+}
+
+### Database Object Management
+#############################################################################
+get_schema_list() {
+    local conn_str
+    conn_str=$(build_connection_string)
+    local sql="
+        SELECT username
+        FROM dba_users
+        WHERE username NOT IN (
+            'SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+            'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+            'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+            'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS'
+        )
+        AND username NOT LIKE 'APEX%'
+        ORDER BY username;
+    "
+
+    echo "${sql}" | ${SQLCMD} ${SQLPLUS_OPTS} "${conn_str}" | grep -v '^$'
+}
+
+### Initialization
+#############################################################################
+# Set optimal SQL*Plus settings
+optimize_sqlplus_settings
+
+# Log initialization
+log_debug "Oracle utilities loaded"

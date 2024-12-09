@@ -1,0 +1,112 @@
+/*
+PostgreSQL Table Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header
+SELECT 'pkey',
+       'schema_name',
+       'table_name',
+       'table_type',
+       'row_count',
+       'total_bytes',
+       'table_bytes',
+       'index_bytes',
+       'toast_bytes',
+       'total_size',
+       'table_size',
+       'index_size',
+       'toast_size',
+       'has_indexes',
+       'has_rules',
+       'has_triggers',
+       'tablespace',
+       'persistence',
+       'access_method',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Table Information
+WITH RECURSIVE
+table_sizes AS (
+    SELECT c.oid,
+           pg_total_relation_size(c.oid) AS total_bytes,
+           pg_relation_size(c.oid) AS table_bytes,
+           pg_indexes_size(c.oid) AS index_bytes,
+           COALESCE(pg_total_relation_size(reltoastrelid), 0) AS toast_bytes,
+           pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+           pg_size_pretty(pg_relation_size(c.oid)) AS table_size,
+           pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+           pg_size_pretty(COALESCE(pg_total_relation_size(reltoastrelid), 0)) AS toast_size
+    FROM pg_class c
+),
+table_stats AS (
+    SELECT relid AS oid,
+           n_live_tup AS row_count
+    FROM pg_stat_user_tables
+)
+SELECT :'pkey' AS pkey,
+       n.nspname AS schema_name,
+       c.relname AS table_name,
+       CASE c.relkind
+           WHEN 'r' THEN 'table'
+           WHEN 'p' THEN 'partitioned_table'
+           WHEN 'v' THEN 'view'
+           WHEN 'm' THEN 'materialized_view'
+           WHEN 'f' THEN 'foreign_table'
+           ELSE c.relkind::text
+       END AS table_type,
+       COALESCE(s.row_count, 0) AS row_count,
+       ts.total_bytes,
+       ts.table_bytes,
+       ts.index_bytes,
+       ts.toast_bytes,
+       ts.total_size,
+       ts.table_size,
+       ts.index_size,
+       ts.toast_size,
+       (EXISTS (
+           SELECT 1
+           FROM pg_index i
+           WHERE i.indrelid = c.oid
+       )) AS has_indexes,
+       (EXISTS (
+           SELECT 1
+           FROM pg_rewrite r
+           WHERE r.ev_class = c.oid
+           AND r.ev_type != '1'
+       )) AS has_rules,
+       (EXISTS (
+           SELECT 1
+           FROM pg_trigger t
+           WHERE t.tgrelid = c.oid
+           AND NOT t.tgisinternal
+       )) AS has_triggers,
+       COALESCE(t.spcname, 'pg_default') AS tablespace,
+       CASE c.relpersistence
+           WHEN 'p' THEN 'permanent'
+           WHEN 'u' THEN 'unlogged'
+           WHEN 't' THEN 'temporary'
+       END AS persistence,
+       am.amname AS access_method,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+LEFT JOIN pg_tablespace t ON t.oid = c.reltablespace
+LEFT JOIN table_sizes ts ON ts.oid = c.oid
+LEFT JOIN table_stats s ON s.oid = c.oid
+LEFT JOIN pg_am am ON am.oid = c.relam
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND n.nspname !~ '^pg_toast'
+  AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+ORDER BY schema_name, table_name;

@@ -1,0 +1,163 @@
+/*
+Oracle Index Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+-- Header
+SELECT 'pkey',
+       'owner',
+       'table_owner',
+       'table_name',
+       'index_name',
+       'index_type',
+       'uniqueness',
+       'tablespace_name',
+       'status',
+       'num_rows',
+       'leaf_blocks',
+       'distinct_keys',
+       'avg_leaf_blocks_per_key',
+       'avg_data_blocks_per_key',
+       'clustering_factor',
+       'blevel',
+       'partitioned',
+       'temporary',
+       'compression',
+       'prefix_length',
+       'degree',
+       'logging',
+       'visibility',
+       'size_bytes',
+       'size_readable',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Index Information
+WITH index_sizes AS (
+    SELECT owner,
+           segment_name,
+           SUM(bytes) AS total_bytes
+    FROM dba_segments
+    WHERE segment_type IN ('INDEX', 'INDEX PARTITION', 'INDEX SUBPARTITION')
+    GROUP BY owner, segment_name
+)
+SELECT :pkey AS pkey,
+       i.owner,
+       i.table_owner,
+       i.table_name,
+       i.index_name,
+       i.index_type,
+       i.uniqueness,
+       i.tablespace_name,
+       i.status,
+       i.num_rows,
+       i.leaf_blocks,
+       i.distinct_keys,
+       i.avg_leaf_blocks_per_key,
+       i.avg_data_blocks_per_key,
+       i.clustering_factor,
+       i.blevel,
+       i.partitioned,
+       i.temporary,
+       i.compression,
+       i.prefix_length,
+       i.degree,
+       i.logging,
+       i.visibility,
+       s.total_bytes AS size_bytes,
+       TRIM(TO_CHAR(ROUND(s.total_bytes/POWER(2,20), 2), '999,999.00')) || ' MB' AS size_readable,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM dba_indexes i
+LEFT JOIN index_sizes s ON i.owner = s.owner
+    AND i.index_name = s.segment_name
+WHERE i.table_owner NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+                          'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+                          'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+                          'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS')
+  AND i.table_owner NOT LIKE 'APEX%'
+ORDER BY i.table_owner, i.table_name, i.index_name;
+
+-- Header: Index Columns
+SELECT 'pkey',
+       'owner',
+       'table_owner',
+       'table_name',
+       'index_name',
+       'column_name',
+       'column_position',
+       'descend',
+       'column_expression',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Index Column Information
+SELECT :pkey AS pkey,
+       i.owner,
+       i.table_owner,
+       i.table_name,
+       i.index_name,
+       ic.column_name,
+       ic.column_position,
+       ic.descend,
+       ie.column_expression,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM dba_indexes i
+JOIN dba_ind_columns ic ON i.owner = ic.index_owner
+    AND i.index_name = ic.index_name
+LEFT JOIN dba_ind_expressions ie ON i.owner = ie.index_owner
+    AND i.index_name = ie.index_name
+    AND ic.column_position = ie.column_position
+WHERE i.table_owner NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+                          'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+                          'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+                          'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS')
+  AND i.table_owner NOT LIKE 'APEX%'
+ORDER BY i.table_owner, i.table_name, i.index_name, ic.column_position;
+
+-- Header: Index Constraints
+SELECT 'pkey',
+       'owner',
+       'table_name',
+       'index_name',
+       'constraint_name',
+       'constraint_type',
+       'status',
+       'deferrable',
+       'deferred',
+       'validated',
+       'generated',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Index Constraint Information
+SELECT :pkey AS pkey,
+       i.owner,
+       i.table_name,
+       i.index_name,
+       c.constraint_name,
+       c.constraint_type,
+       c.status,
+       c.deferrable,
+       c.deferred,
+       c.validated,
+       c.generated,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM dba_indexes i
+JOIN dba_constraints c ON i.owner = c.owner
+    AND i.table_name = c.table_name
+    AND i.index_name = c.index_name
+WHERE i.table_owner NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+                          'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+                          'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+                          'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS')
+  AND i.table_owner NOT LIKE 'APEX%'
+ORDER BY i.owner, i.table_name, i.index_name;

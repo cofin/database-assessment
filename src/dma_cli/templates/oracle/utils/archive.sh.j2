@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# Archive management utilities for Oracle collection scripts
+
+# {{ google_license }}
+
+### Archive Configuration
+#############################################################################
+ARCHIVE_FORMAT="tar.gz"
+ARCHIVE_TIMESTAMP=$(date -u '+%Y%m%d_%H%M%S')
+ARCHIVE_NAME="oracle_collection_${COLLECTION_TAG:-${ARCHIVE_TIMESTAMP}}.${ARCHIVE_FORMAT}"
+
+### File Collection
+#############################################################################
+collect_output_files() {
+    local output_list=()
+
+    # Collect CSV files
+    while IFS= read -r -d '' file; do
+        output_list+=("${file}")
+    done < <(find "${OUTPUT_DIR}" -type f -name "*.csv" -print0)
+
+    if (( ${#output_list[@]} == 0 )); then
+        log_error "No output files found in ${OUTPUT_DIR}"
+        return 1
+    fi
+
+    echo "${output_list[@]}"
+}
+
+collect_log_files() {
+    local log_list=()
+
+    # Collect log files
+    while IFS= read -r -d '' file; do
+        log_list+=("${file}")
+    done < <(find "${LOG_DIR}" -type f -name "*.log" -print0)
+
+    if (( ${#log_list[@]} == 0 )); then
+        log_warning "No log files found in ${LOG_DIR}"
+        return 0
+    fi
+
+    echo "${log_list[@]}"
+}
+
+### Archive Creation
+#############################################################################
+create_collection_archive() {
+    local archive_path="${OUTPUT_DIR}/${ARCHIVE_NAME}"
+    local temp_dir="${TMP_DIR}/archive_${ARCHIVE_TIMESTAMP}"
+    local output_files log_files
+
+    # Create temporary directory structure
+    mkdir -p "${temp_dir}"/{output,logs,sql,metadata}
+
+    # Collect output files
+    output_files=$(collect_output_files) || return 1
+
+    # Copy output files
+    for file in ${output_files}; do
+        cp "${file}" "${temp_dir}/output/"
+    done
+
+    # Collect and copy log files
+    log_files=$(collect_log_files)
+    if [[ -n "${log_files}" ]]; then
+        for file in ${log_files}; do
+            cp "${file}" "${temp_dir}/logs/"
+        done
+    fi
+
+    # Copy SQL scripts for reference
+    cp "${SQL_DIR}"/*.sql "${temp_dir}/sql/" 2>/dev/null || true
+
+    # Create metadata file
+    create_metadata_file "${temp_dir}/metadata/collection_info.json"
+
+    # Create archive
+    log_info "Creating archive: ${archive_path}"
+    if ! tar -czf "${archive_path}" -C "${temp_dir}" .; then
+        log_error "Failed to create archive"
+        return 1
+    fi
+
+    # Cleanup temporary directory
+    rm -rf "${temp_dir}"
+
+    log_info "Archive created successfully: ${archive_path}"
+    return 0
+}
+
+### Metadata Generation
+#############################################################################
+create_metadata_file() {
+    local metadata_file="$1"
+
+    cat > "${metadata_file}" << EOF
+{
+    "collection_info": {
+        "timestamp": "$(date -u '+%Y-%m-%d %H:%M:%S UTC')",
+        "tag": "${COLLECTION_TAG}",
+        "source_id": "${DMA_SOURCE_ID:-}",
+        "manual_id": "${DMA_MANUAL_ID:-}"
+    },
+    "database_info": {
+        "host": "${HOST}",
+        "port": "${PORT}",
+        "service": "${SERVICE_NAME}",
+        "database": "${DBNAME}",
+        "username": "${USERNAME}"
+    },
+    "environment": {
+        "oracle_home": "${ORACLE_HOME}",
+        "tns_admin": "${TNS_ADMIN}",
+        "nls_lang": "${NLS_LANG}",
+        "hostname": "$(hostname)",
+        "os_type": "$(uname -s)",
+        "os_release": "$(uname -r)"
+    },
+    "collection_stats": {
+        "output_files": $(find "${OUTPUT_DIR}" -type f -name "*.csv" | wc -l),
+        "log_files": $(find "${LOG_DIR}" -type f -name "*.log" | wc -l),
+        "total_size": "$(du -sh "${OUTPUT_DIR}" | cut -f1)"
+    }
+}
+EOF
+}
+
+### Archive Validation
+#############################################################################
+validate_archive() {
+    local archive_path="$1"
+
+    # Check if archive exists
+    if [[ ! -f "${archive_path}" ]]; then
+        log_error "Archive not found: ${archive_path}"
+        return 1
+    fi
+
+    # Test archive integrity
+    if ! tar -tzf "${archive_path}" >/dev/null 2>&1; then
+        log_error "Archive validation failed: ${archive_path}"
+        return 1
+    fi
+
+    # Check for required components
+    local required_files=(
+        "output/"
+        "metadata/collection_info.json"
+    )
+
+    for file in "${required_files[@]}"; do
+        if ! tar -tzf "${archive_path}" | grep -q "^\./${file}"; then
+            log_error "Missing required component in archive: ${file}"
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+### Initialization Complete
+#############################################################################
+log_debug "Archive utilities loaded"

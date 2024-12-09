@@ -1,0 +1,99 @@
+/*
+PostgreSQL Performance Statistics Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header
+SELECT 'pkey',
+       'schema_name',
+       'table_name',
+       'sequential_scans',
+       'sequential_scan_rows',
+       'index_scans',
+       'index_scan_rows',
+       'rows_inserted',
+       'rows_updated',
+       'rows_deleted',
+       'rows_hot_updated',
+       'rows_live',
+       'rows_dead',
+       'last_vacuum',
+       'last_autovacuum',
+       'last_analyze',
+       'last_autoanalyze',
+       'vacuum_count',
+       'autovacuum_count',
+       'analyze_count',
+       'autoanalyze_count',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Table Performance Statistics
+SELECT :'pkey' AS pkey,
+       schemaname AS schema_name,
+       relname AS table_name,
+       seq_scan AS sequential_scans,
+       seq_tup_read AS sequential_scan_rows,
+       idx_scan AS index_scans,
+       idx_tup_fetch AS index_scan_rows,
+       n_tup_ins AS rows_inserted,
+       n_tup_upd AS rows_updated,
+       n_tup_del AS rows_deleted,
+       n_tup_hot_upd AS rows_hot_updated,
+       n_live_tup AS rows_live,
+       n_dead_tup AS rows_dead,
+       last_vacuum::timestamp(0) AT TIME ZONE 'UTC' AS last_vacuum,
+       last_autovacuum::timestamp(0) AT TIME ZONE 'UTC' AS last_autovacuum,
+       last_analyze::timestamp(0) AT TIME ZONE 'UTC' AS last_analyze,
+       last_autoanalyze::timestamp(0) AT TIME ZONE 'UTC' AS last_autoanalyze,
+       vacuum_count,
+       autovacuum_count,
+       analyze_count,
+       autoanalyze_count,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_stat_user_tables
+WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+  AND schemaname !~ '^pg_toast'
+ORDER BY schemaname, relname;
+
+-- Header
+SELECT 'pkey',
+       'schema_name',
+       'table_name',
+       'index_name',
+       'index_scans',
+       'index_rows_read',
+       'index_rows_fetched',
+       'index_size_bytes',
+       'index_size_pretty',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Index Performance Statistics
+SELECT :'pkey' AS pkey,
+       schemaname AS schema_name,
+       t.relname AS table_name,
+       i.relname AS index_name,
+       idx_scan AS index_scans,
+       idx_tup_read AS index_rows_read,
+       idx_tup_fetch AS index_rows_fetched,
+       pg_relation_size(i.relid) AS index_size_bytes,
+       pg_size_pretty(pg_relation_size(i.relid)) AS index_size_pretty,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_stat_user_indexes i
+JOIN pg_stat_user_tables t ON i.schemaname = t.schemaname
+    AND i.relid = t.relid
+WHERE i.schemaname NOT IN ('pg_catalog', 'information_schema')
+  AND i.schemaname !~ '^pg_toast'
+ORDER BY i.schemaname, t.relname, i.relname;

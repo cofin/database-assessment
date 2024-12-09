@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# Archive management utilities for PostgreSQL collection
+
+# {{ google_license }}
+
+### Archive Configuration
+#############################################################################
+# Default archive settings if not already set
+COMPRESS_CMD=${COMPRESS_CMD:-"gzip"}
+COMPRESS_EXT=${COMPRESS_EXT:-"gz"}
+COMPRESS_OPTS=${COMPRESS_OPTS:-"-9"}
+
+### Archive Creation
+#############################################################################
+create_collection_archive() {
+    local timestamp
+    timestamp=$(date -u '+%Y%m%d_%H%M%S')
+    local archive_base="opdb_postgresql__${COLLECTION_TAG:-${timestamp}}"
+    local manifest_file="${TMP_DIR}/manifest_${timestamp}.txt"
+    local archive_path
+
+    log_info "Creating collection archive"
+
+    # Create manifest file
+    create_manifest "${manifest_file}" "${OUTPUT_DIR}"
+
+    # Move manifest to output directory
+    cp "${manifest_file}" "${OUTPUT_DIR}/manifest.txt"
+
+    # Create archive based on compression type
+    if [[ "${COMPRESS_CMD}" == "zip" ]]; then
+        archive_path="${OUTPUT_DIR}/${archive_base}.zip"
+        create_zip_archive "${archive_path}" "${OUTPUT_DIR}"
+    else
+        archive_path="${OUTPUT_DIR}/${archive_base}.tar.${COMPRESS_EXT}"
+        create_tar_archive "${archive_path}" "${OUTPUT_DIR}"
+    fi
+
+    # Verify archive
+    if ! verify_archive "${archive_path}"; then
+        log_error "Archive verification failed"
+        return 1
+    fi
+
+    log_info "Collection archive created: ${archive_path}"
+    return 0
+}
+
+### Manifest Creation
+#############################################################################
+create_manifest() {
+    local manifest_file="$1"
+    local source_dir="$2"
+    local file_count=0
+
+    log_debug "Creating manifest file: ${manifest_file}"
+
+    # Write manifest header
+    {
+        echo "# PostgreSQL Collection Manifest"
+        echo "# Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        echo "# Version: ${VERSION}"
+        echo "# Collection Tag: ${COLLECTION_TAG}"
+        echo "#"
+        echo "# Format: <file_path>|<md5sum>|<size_bytes>"
+        echo "#"
+    } > "${manifest_file}"
+
+    # Add each file to manifest
+    while IFS= read -r -d '' file; do
+        local rel_path size md5sum
+        rel_path=${file#"${source_dir}/"}
+        size=$(stat -f %z "${file}" 2>/dev/null || stat -c %s "${file}")
+        md5sum=$(md5sum "${file}" | cut -d' ' -f1)
+
+        echo "${rel_path}|${md5sum}|${size}" >> "${manifest_file}"
+        ((file_count++))
+    done < <(find "${source_dir}" -type f -not -name "manifest*.txt" -print0)
+
+    log_debug "Added ${file_count} files to manifest"
+}
+
+### Archive Creation Helpers
+#############################################################################
+create_zip_archive() {
+    local archive_path="$1"
+    local source_dir="$2"
+
+    log_debug "Creating ZIP archive: ${archive_path}"
+
+    # Change to source directory to avoid full paths in archive
+    (cd "${source_dir}" && zip ${COMPRESS_OPTS} "${archive_path}" ./* >/dev/null)
+}
+
+create_tar_archive() {
+    local archive_path="$1"
+    local source_dir="$2"
+
+    log_debug "Creating TAR archive: ${archive_path}"
+
+    # Create tar archive and compress
+    tar -C "${source_dir}" -cf - . | "${COMPRESS_CMD}" ${COMPRESS_OPTS} > "${archive_path}"
+}
+
+### Archive Verification
+#############################################################################
+verify_archive() {
+    local archive_path="$1"
+    local verify_dir="${TMP_DIR}/verify_${RANDOM}"
+    local success=0
+
+    log_debug "Verifying archive: ${archive_path}"
+
+    # Create temporary directory for verification
+    mkdir -p "${verify_dir}"
+
+    # Extract archive based on type
+    if [[ "${archive_path}" == *.zip ]]; then
+        verify_zip_archive "${archive_path}" "${verify_dir}" || success=1
+    else
+        verify_tar_archive "${archive_path}" "${verify_dir}" || success=1
+    fi
+
+    # Verify manifest if it exists
+    if [[ -f "${verify_dir}/manifest.txt" ]]; then
+        verify_manifest "${verify_dir}/manifest.txt" "${verify_dir}" || success=1
+    fi
+
+    # Cleanup
+    rm -rf "${verify_dir}"
+
+    return "${success}"
+}
+
+verify_zip_archive() {
+    local archive_path="$1"
+    local verify_dir="$2"
+
+    # Test zip archive integrity
+    if ! unzip -t "${archive_path}" >/dev/null; then
+        log_error "ZIP archive integrity check failed"
+        return 1
+    fi
+
+    # Extract for content verification
+    if ! unzip -q "${archive_path}" -d "${verify_dir}"; then
+        log_error "Failed to extract ZIP archive for verification"
+        return 1
+    fi
+
+    return 0
+}
+
+verify_tar_archive() {
+    local archive_path="$1"
+    local verify_dir="$2"
+
+    # Extract for verification
+    if [[ "${COMPRESS_CMD}" == "gzip" ]]; then
+        if ! tar -xzf "${archive_path}" -C "${verify_dir}"; then
+            log_error "Failed to extract TAR archive for verification"
+            return 1
+        fi
+    else
+        if ! "${COMPRESS_CMD}" -dc "${archive_path}" | tar -xf - -C "${verify_dir}"; then
+            log_error "Failed to extract compressed TAR archive for verification"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+verify_manifest() {
+    local manifest_file="$1"
+    local verify_dir="$2"
+    local failed=0
+
+    log_debug "Verifying files against manifest"
+
+    # Skip header lines
+    while IFS='|' read -r file_path checksum size || [[ -n "${file_path}" ]]; do
+        # Skip comments and empty lines
+        [[ "${file_path}" =~ ^#.*$ || -z "${file_path}" ]] && continue
+
+        local full_path="${verify_dir}/${file_path}"
+
+        # Verify file exists
+        if [[ ! -f "${full_path}" ]]; then
+            log_error "Missing file from archive: ${file_path}"
+            ((failed++))
+            continue
+        fi
+
+        # Verify checksum
+        local actual_checksum
+        actual_checksum=$(md5sum "${full_path}" | cut -d' ' -f1)
+        if [[ "${actual_checksum}" != "${checksum}" ]]; then
+            log_error "Checksum mismatch for ${file_path}"
+            log_debug "Expected: ${checksum}, Got: ${actual_checksum}"
+            ((failed++))
+        fi
+
+        # Verify size
+        local actual_size
+        actual_size=$(stat -f %z "${full_path}" 2>/dev/null || stat -c %s "${full_path}")
+        if [[ "${actual_size}" != "${size}" ]]; then
+            log_error "Size mismatch for ${file_path}"
+            log_debug "Expected: ${size}, Got: ${actual_size}"
+            ((failed++))
+        fi
+    done < "${manifest_file}"
+
+    return "${failed}"
+}
+
+### Initialization
+#############################################################################
+log_debug "Archive utilities loaded"

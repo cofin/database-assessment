@@ -1,0 +1,183 @@
+/*
+PostgreSQL Security Configuration Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header: Role Information
+SELECT 'pkey',
+       'role_name',
+       'is_superuser',
+       'can_create_db',
+       'can_create_role',
+       'can_login',
+       'is_replication',
+       'connection_limit',
+       'valid_until',
+       'config_params',
+       'member_of',
+       'owns_schemas',
+       'owns_databases',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Role Information
+WITH RECURSIVE
+role_memberships AS (
+    SELECT r.oid,
+           string_agg(rm.rolname, ', ' ORDER BY rm.rolname) AS member_of
+    FROM pg_roles r
+    LEFT JOIN pg_auth_members m ON r.oid = m.member
+    LEFT JOIN pg_roles rm ON m.roleid = rm.oid
+    GROUP BY r.oid
+),
+role_schemas AS (
+    SELECT r.oid,
+           string_agg(n.nspname, ', ' ORDER BY n.nspname) AS owns_schemas
+    FROM pg_roles r
+    LEFT JOIN pg_namespace n ON n.nspowner = r.oid
+    GROUP BY r.oid
+),
+role_databases AS (
+    SELECT r.oid,
+           string_agg(d.datname, ', ' ORDER BY d.datname) AS owns_databases
+    FROM pg_roles r
+    LEFT JOIN pg_database d ON d.datdba = r.oid
+    GROUP BY r.oid
+),
+role_config AS (
+    SELECT r.oid,
+           string_agg(
+               format('%s=%s', config.name, config.setting),
+               ', ' ORDER BY config.name
+           ) AS config_params
+    FROM pg_roles r
+    LEFT JOIN pg_db_role_setting rs ON rs.setrole = r.oid
+    CROSS JOIN LATERAL (
+        SELECT name, setting::text
+        FROM pg_options_to_table(rs.setconfig)
+    ) AS config
+    GROUP BY r.oid
+)
+SELECT :'pkey' AS pkey,
+       r.rolname AS role_name,
+       r.rolsuper AS is_superuser,
+       r.rolcreatedb AS can_create_db,
+       r.rolcreaterole AS can_create_role,
+       r.rolcanlogin AS can_login,
+       r.rolreplication AS is_replication,
+       r.rolconnlimit AS connection_limit,
+       r.rolvaliduntil::timestamp(0) AT TIME ZONE 'UTC' AS valid_until,
+       COALESCE(rc.config_params, '') AS config_params,
+       COALESCE(rm.member_of, '') AS member_of,
+       COALESCE(rs.owns_schemas, '') AS owns_schemas,
+       COALESCE(rd.owns_databases, '') AS owns_databases,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_roles r
+LEFT JOIN role_memberships rm ON r.oid = rm.oid
+LEFT JOIN role_schemas rs ON r.oid = rs.oid
+LEFT JOIN role_databases rd ON r.oid = rd.oid
+LEFT JOIN role_config rc ON r.oid = rc.oid
+ORDER BY r.rolname;
+
+-- Header: Object Privileges
+SELECT 'pkey',
+       'schema_name',
+       'object_type',
+       'object_name',
+       'owner',
+       'grantee',
+       'privileges',
+       'grantor',
+       'is_grantable',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Object Privileges
+WITH RECURSIVE
+object_acl AS (
+    SELECT n.nspname AS schema_name,
+           CASE c.relkind
+               WHEN 'r' THEN 'table'
+               WHEN 'v' THEN 'view'
+               WHEN 'm' THEN 'materialized_view'
+               WHEN 'S' THEN 'sequence'
+               WHEN 'f' THEN 'foreign_table'
+           END AS object_type,
+           c.relname AS object_name,
+           pg_get_userbyid(c.relowner) AS owner,
+           (aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner)))).grantor AS grantor_oid,
+           (aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner)))).grantee AS grantee_oid,
+           (aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner)))).privilege_type AS privilege,
+           (aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner)))).is_grantable
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r', 'v', 'm', 'S', 'f')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND n.nspname !~ '^pg_toast'
+)
+SELECT :'pkey' AS pkey,
+       a.schema_name,
+       a.object_type,
+       a.object_name,
+       a.owner,
+       CASE a.grantee_oid
+           WHEN 0 THEN 'PUBLIC'
+           ELSE pg_get_userbyid(a.grantee_oid)
+       END AS grantee,
+       string_agg(a.privilege, ', ' ORDER BY a.privilege) AS privileges,
+       pg_get_userbyid(a.grantor_oid) AS grantor,
+       bool_and(a.is_grantable) AS is_grantable,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM object_acl a
+GROUP BY schema_name, object_type, object_name, owner, grantee_oid, grantor_oid
+ORDER BY schema_name, object_type, object_name;
+
+-- Header: Default Privileges
+SELECT 'pkey',
+       'schema_name',
+       'object_type',
+       'role_name',
+       'grantee',
+       'privileges',
+       'grantor',
+       'is_grantable',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Default Privileges
+SELECT :'pkey' AS pkey,
+       n.nspname AS schema_name,
+       CASE d.defaclobjtype
+           WHEN 'r' THEN 'table'
+           WHEN 'S' THEN 'sequence'
+           WHEN 'f' THEN 'function'
+           WHEN 'T' THEN 'type'
+           WHEN 'n' THEN 'schema'
+       END AS object_type,
+       pg_get_userbyid(d.defaclrole) AS role_name,
+       CASE a.grantee
+           WHEN 0 THEN 'PUBLIC'
+           ELSE pg_get_userbyid(a.grantee)
+       END AS grantee,
+       string_agg(a.privilege_type, ', ' ORDER BY a.privilege_type) AS privileges,
+       pg_get_userbyid(a.grantor) AS grantor,
+       bool_and(a.is_grantable) AS is_grantable,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id
+FROM pg_default_acl d
+JOIN pg_namespace n ON n.oid = d.defaclnamespace
+CROSS JOIN LATERAL aclexplode(d.defaclacl) AS a
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+GROUP BY n.nspname, d.defaclobjtype, d.defaclrole, a.grantee, a.grantor
+ORDER BY n.nspname, object_type, role_name;

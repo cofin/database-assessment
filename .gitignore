@@ -17,7 +17,7 @@ eggs/
 .eggs/
 lib/
 !resources/lib
-!src/**/*/lib
+!dma/lib
 lib64/
 parts/
 sdist/
@@ -186,5 +186,6 @@ src/dma/templates/*
 .astro
 .vite
 .npmrc
+!src/scripts/**/lib
 # vscode
 # .vscode

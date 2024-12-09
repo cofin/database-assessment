@@ -1,0 +1,25 @@
+# Troubleshooting Guide
+Generated: {{ generation_date }}
+
+## Common Issues
+
+### Connection Problems
+- Verify PostgreSQL is running: `pg_isready -h <host> -p <port>`
+- Check network connectivity: `nc -zv <host> <port>`
+- Verify credentials using `psql`
+
+### Permission Issues
+- Required permissions:
+  - SELECT on system catalogs
+  - USAGE on relevant schemas
+  - Specific permissions for pg_stat_statements
+
+### Performance Considerations
+- Large databases may require increased work_mem
+- Consider running during off-peak hours
+- Use --timeout option for long-running queries
+
+## Error Messages
+
+### "pg_stat_statements not available"
+Solution: Install the extension:

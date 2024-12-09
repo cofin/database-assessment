@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Logging utilities for PostgreSQL collection scripts
+
+# {{ google_license }}
+
+### Logging Configuration
+#############################################################################
+# Default to non-verbose logging
+VERBOSE=${VERBOSE:-0}
+
+# Log file setup
+LOG_FILE="${LOG_DIR}/collection_$(date -u '+%Y%m%d_%H%M%S').log"
+touch "${LOG_FILE}"
+
+### Logging Functions
+#############################################################################
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+    echo "[${timestamp}] [${level}] ${message}" | tee -a "${LOG_FILE}"
+}
+
+log_debug() {
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        log_message "DEBUG" "$1"
+    fi
+}
+
+log_info() {
+    log_message "INFO" "$1"
+}
+
+log_warning() {
+    log_message "WARNING" "$1" >&2
+}
+
+log_error() {
+    log_message "ERROR" "$1" >&2
+}
+
+log_sql() {
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        log_message "SQL" "$1"
+    fi
+}
+
+### Progress Reporting
+#############################################################################
+start_operation() {
+    local operation="$1"
+    log_info "Starting: ${operation}"
+}
+
+end_operation() {
+    local operation="$1"
+    local status="${2:-completed}"
+    log_info "Operation ${operation} ${status}"
+}
+
+### Error Reporting
+#############################################################################
+log_error_details() {
+    local error_msg="$1"
+    local error_code="${2:-1}"
+    local stack_trace
+
+    log_error "${error_msg} (Error Code: ${error_code})"
+
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        stack_trace=$(caller)
+        log_debug "Stack trace: ${stack_trace}"
+    fi
+}
+
+### Initialization Complete
+#############################################################################
+log_debug "Logging utilities loaded"

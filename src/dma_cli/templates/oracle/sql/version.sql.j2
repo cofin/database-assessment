@@ -1,0 +1,60 @@
+/*
+Oracle Version Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+-- Header
+SELECT 'pkey',
+       'banner',
+       'banner_full',
+       'banner_legacy',
+       'version',
+       'version_full',
+       'major_version',
+       'is_supported',
+       'edition',
+       'host_name',
+       'instance_name',
+       'startup_time',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Version Data
+WITH version_info AS (
+    SELECT version,
+           REGEXP_SUBSTR(version, '^\d+') AS major_version,
+           banner,
+           host_name,
+           instance_name,
+           startup_time
+    FROM v$instance
+),
+edition_info AS (
+    SELECT banner AS banner_full,
+           REGEXP_REPLACE(banner, ' with.*$', '') AS banner_legacy
+    FROM v$version
+    WHERE banner LIKE 'Oracle%'
+)
+SELECT :pkey AS pkey,
+       v.banner,
+       e.banner_full,
+       e.banner_legacy,
+       v.version,
+       v.version AS version_full,
+       v.major_version,
+       CASE
+           WHEN TO_NUMBER(v.major_version) >= 19 THEN 'true'
+           ELSE 'false'
+       END AS is_supported,
+       SYS_CONTEXT('USERENV', 'DB_EDITION') AS edition,
+       v.host_name,
+       v.instance_name,
+       v.startup_time,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM version_info v
+CROSS JOIN edition_info e;

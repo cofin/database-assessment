@@ -1,0 +1,79 @@
+/*
+Oracle Database Configuration Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+-- Header
+SELECT 'pkey',
+       'database_name',
+       'db_unique_name',
+       'platform_name',
+       'cdb',
+       'con_id',
+       'con_name',
+       'open_mode',
+       'database_role',
+       'created',
+       'log_mode',
+       'force_logging',
+       'platform_id',
+       'charset',
+       'ncharset',
+       'size_bytes',
+       'size_readable',
+       'block_size',
+       'total_files',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Database Information
+WITH db_files AS (
+    SELECT COUNT(*) AS total_files,
+           SUM(bytes) AS total_bytes
+    FROM v$datafile
+),
+db_info AS (
+    SELECT name,
+           db_unique_name,
+           platform_name,
+           cdb,
+           con_id,
+           open_mode,
+           database_role,
+           created,
+           log_mode,
+           force_logging,
+           platform_id
+    FROM v$database
+    CROSS JOIN v$transportable_platform
+    WHERE platform_id = v$database.platform_id
+)
+SELECT :pkey AS pkey,
+       d.name AS database_name,
+       d.db_unique_name,
+       d.platform_name,
+       d.cdb,
+       d.con_id,
+       SYS_CONTEXT('USERENV', 'CON_NAME') AS con_name,
+       d.open_mode,
+       d.database_role,
+       d.created,
+       d.log_mode,
+       d.force_logging,
+       d.platform_id,
+       NLS_DATABASE_PARAMETERS.value AS charset,
+       (SELECT value FROM nls_database_parameters WHERE parameter = 'NLS_NCHAR_CHARACTERSET') AS ncharset,
+       f.total_bytes AS size_bytes,
+       TRIM(TO_CHAR(ROUND(f.total_bytes/POWER(2,30), 2), '999,999.00')) || ' GB' AS size_readable,
+       (SELECT value FROM v$parameter WHERE name = 'db_block_size') AS block_size,
+       f.total_files,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM db_info d
+CROSS JOIN db_files f
+CROSS JOIN nls_database_parameters
+WHERE parameter = 'NLS_CHARACTERSET';

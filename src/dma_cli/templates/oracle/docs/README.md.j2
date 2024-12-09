@@ -1,0 +1,105 @@
+# Oracle Database Migration Assessment Collection
+Generated: {{ generation_date }}
+
+This collection script gathers essential information about your Oracle database for migration assessment.
+
+## Requirements
+
+- Oracle Database {{ supported_oracle_versions|join(', ') }}
+- Required commands: {{ required_commands|join(', ') }}
+- Minimum permissions: SELECT on system views (DBA_*, V$*)
+- Environment variables:
+  - ORACLE_HOME
+  - TNS_ADMIN (optional if using EZ Connect)
+  - NLS_LANG (defaults to AMERICAN_AMERICA.AL32UTF8)
+
+## Collected Information
+
+### Core Database Information
+- Version and edition details
+- Database configuration and parameters
+- Instance-level settings
+- Character set information
+
+### Schema Objects
+- Tables and columns
+- Indexes and constraints
+- Materialized views
+- Stored procedures and packages
+- User-defined types
+
+### Performance Metrics
+- Table and index statistics
+- Buffer cache statistics
+- I/O performance metrics
+- Resource utilization
+- Wait events and locks
+
+### Security Configuration
+- User accounts and roles
+- Object privileges
+- System privileges
+- Profile settings
+
+### Storage Information
+- Tablespace configuration
+- ASM disk groups (if used)
+- Datafile locations and sizes
+- Segment space usage
+
+## Output Files
+
+The collection produces CSV files with the following information:
+{% for script, description in sql_scripts.items() %}
+- `{{ script }}`: {{ description }}
+{% endfor %}
+
+## Output Format
+
+All data is collected in CSV format with consistent headers:
+- Fields are pipe-delimited (|)
+- UTF-8 encoding
+- Includes metadata fields (collection ID, timestamp)
+- Headers match column names in system views
+
+## Performance Impact
+
+The collection process:
+- Uses read-only queries
+- Implements query optimization
+- Manages resource consumption
+- Can be run during production hours
+- Typical runtime: 5-15 minutes
+
+## Usage
+
+```bash
+bash
+./collect_data.sh -H <hostname> -P <port> -S <service_name> -U <username> -d <database>
+Options:
+-H, --host Database hostname or IP address
+-P, --port Database port number (default: 1521)
+-S, --service Oracle service name
+-U, --username Database username
+-d, --dbname Database name (SID)
+-p, --password Database password (will prompt if not provided)
+-t, --tag Collection tag (default: timestamp)
+--source-id DMA source identifier
+--manual-id DMA manual identifier
+-o, --output-dir Output directory (default: ./output)
+-v, --verbose Enable verbose output
+```
+
+## Security Considerations
+
+- The script requires DBA privileges to access system views
+- Passwords are never stored in files or logs
+- All connections use server-side authentication
+- Collection results are stored in a secure archive
+
+## Support
+
+For issues or questions:
+1. Check TROUBLESHOOTING.md
+2. Review collection logs
+3. Contact support with the diagnostic archive

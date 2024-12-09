@@ -1,0 +1,42 @@
+# PostgreSQL Database Migration Assessment Collection
+Generated: {{ generation_date }}
+
+This collection script gathers essential information about your PostgreSQL database for migration assessment.
+
+## Requirements
+
+- PostgreSQL {{ supported_postgres_versions|join(', ') }}
+- Required commands: {{ required_commands|join(', ') }}
+- Minimum permissions: SELECT on system catalogs
+
+## Collected Information
+
+### Core Database Information
+- Version and compatibility status
+- Database configuration and settings
+- Instance-level parameters
+
+### Schema Objects
+- Tables, indexes, and constraints
+- Views and materialized views
+- Custom types and extensions
+- Storage and tablespace configuration
+
+### Performance Metrics
+- Table and index statistics
+- Query performance data
+- Vacuum and analyze statistics
+
+### Security Configuration
+- Roles and permissions
+- Object grants
+- Default privileges
+
+## Output Files
+
+The collection produces CSV files with the following information:
+{% for script, description in sql_scripts.items() %}
+- `{{ script }}`: {{ description }}
+{% endfor %}
+
+## Usage

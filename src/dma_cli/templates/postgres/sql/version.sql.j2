@@ -1,0 +1,34 @@
+/*
+PostgreSQL Version Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+\set ON_ERROR_STOP on
+\timing off
+\pset format unaligned
+\pset tuples_only true
+\pset fieldsep '|'
+
+-- Header
+SELECT 'pkey',
+       'server_version',
+       'server_version_num',
+       'server_major_version',
+       'is_supported',
+       'dma_source_id',
+       'dma_manual_id';
+
+-- Version Data
+SELECT :'pkey' AS pkey,
+       version() AS server_version,
+       current_setting('server_version_num')::integer AS server_version_num,
+       split_part(current_setting('server_version'), '.', 1) AS server_major_version,
+       CASE
+           WHEN split_part(current_setting('server_version'), '.', 1)::integer >= 12 THEN 'true'
+           ELSE 'false'
+       END AS is_supported,
+       :'dma_source_id' AS dma_source_id,
+       :'dma_manual_id' AS dma_manual_id;

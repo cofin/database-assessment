@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# PostgreSQL-specific utility functions
+
+# {{ google_license }}
+
+### PostgreSQL Connection Management
+#############################################################################
+PGAPPNAME=${PGAPPNAME:-"dma_collector"}
+export PGAPPNAME
+
+# Connection string builder
+build_connection_string() {
+    local conn_parts=()
+
+    [[ -n "${HOST:-}" ]] && conn_parts+=("-h" "${HOST}")
+    [[ -n "${PORT:-}" ]] && conn_parts+=("-p" "${PORT}")
+    [[ -n "${USERNAME:-}" ]] && conn_parts+=("-U" "${USERNAME}")
+    [[ -n "${DBNAME:-}" ]] && conn_parts+=("-d" "${DBNAME}")
+
+    echo "${conn_parts[*]}"
+}
+
+# Test database connection
+test_connection() {
+    local conn_string
+    conn_string=$(build_connection_string)
+
+    log_debug "Testing connection with: ${SQLCMD} ${conn_string} -c 'SELECT 1'"
+
+    if ! ${SQLCMD} ${conn_string} -c "SELECT 1" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    return 0
+}
+
+### Version Management
+#############################################################################
+get_postgres_version() {
+    local conn_string version
+    conn_string=$(build_connection_string)
+
+    version=$(${SQLCMD} ${conn_string} -t -A -c "SHOW server_version")
+    parse_version "${version}"
+}
+
+is_supported_version() {
+    local version="$1"
+    local major_version
+    major_version=$(echo "${version}" | cut -d. -f1)
+
+    for supported in "${SUPPORTED_VERSIONS[@]}"; do
+        if [[ "${major_version}" == "${supported}" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+### SQL Execution
+#############################################################################
+execute_sql_script() {
+    local script="$1"
+    local output_base="$2"
+    local conn_string work_mem
+
+    conn_string=$(build_connection_string)
+    work_mem=$(adjust_work_mem)
+
+    # Ensure SQL script exists
+    if ! ensure_file_exists "${SQL_DIR}/${script}"; then
+        return 1
+    fi
+
+    # Set output file
+    local output_file="${OUTPUT_DIR}/opdb__postgresql_${output_base}__${COLLECTION_TAG}.csv"
+
+    log_debug "Executing SQL script: ${script}"
+    log_debug "Output file: ${output_file}"
+
+    # Execute with error handling
+    if ! ${SQLCMD} \
+        ${conn_string} \
+        --set="ON_ERROR_STOP=1" \
+        --set="WORK_MEM=${work_mem}" \
+        --no-align \
+        --tuples-only \
+        --field-separator='|' \
+        --quiet \
+        -v "pkey=${COLLECTION_TAG}" \
+        -v "dma_source_id=${DMA_SOURCE_ID:-}" \
+        -v "dma_manual_id=${DMA_MANUAL_ID:-}" \
+        -f "${SQL_DIR}/${script}" \
+        > "${output_file}"; then
+
+        log_error "Failed to execute SQL script: ${script}"
+        return 1
+    fi
+
+    # Check if output file was created and is not empty
+    if [[ ! -s "${output_file}" ]]; then
+        log_warning "SQL script produced no output: ${script}"
+        # Create empty file with headers if available
+        if [[ -f "${SQL_DIR}/headers/${output_base}.header" ]]; then
+            cp "${SQL_DIR}/headers/${output_base}.header" "${output_file}"
+        fi
+    fi
+
+    return 0
+}
+
+### Database Object Information
+#############################################################################
+get_database_size() {
+    local conn_string
+    conn_string=$(build_connection_string)
+
+    ${SQLCMD} ${conn_string} -t -A -c "
+        SELECT pg_size_pretty(pg_database_size(current_database()))
+    "
+}
+
+get_schema_list() {
+    local conn_string
+    conn_string=$(build_connection_string)
+
+    ${SQLCMD} ${conn_string} -t -A -c "
+        SELECT string_agg(schema_name, ',')
+        FROM information_schema.schemata
+        WHERE schema_name NOT LIKE 'pg_%'
+          AND schema_name != 'information_schema'
+    "
+}
+
+check_extension_availability() {
+    local extension="$1"
+    local conn_string
+    conn_string=$(build_connection_string)
+
+    ${SQLCMD} ${conn_string} -t -A -c "
+        SELECT count(*)
+        FROM pg_available_extensions
+        WHERE name = '${extension}'
+    "
+}
+
+### Performance Settings
+#############################################################################
+optimize_psql_settings() {
+    local work_mem
+    work_mem=$(adjust_work_mem)
+
+    # Export settings as environment variables
+    export PGOPTIONS="
+        --client-min-messages=warning
+        --search-path=public
+        --work-mem=${work_mem}
+    "
+}
+
+### Initialization
+#############################################################################
+# Set optimal psql settings
+optimize_psql_settings
+
+# Log initialization
+log_debug "PostgreSQL utilities loaded"

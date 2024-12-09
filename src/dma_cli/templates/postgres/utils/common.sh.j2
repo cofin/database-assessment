@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# Common utility functions for PostgreSQL collection scripts
+
+# {{ google_license }}
+
+### Environment Setup
+#############################################################################
+# Set strict error handling if not already set
+if [[ -z "${BASH_VERSINFO:-}" ]]; then
+    echo "Error: This script requires bash" >&2
+    exit 1
+fi
+
+set -o errexit  # Exit on error
+set -o nounset  # Exit on undefined variable
+set -o pipefail # Exit on pipe failure
+
+# Set locale
+LOCALE=$(echo "${LANG:-C}" | cut -d '.' -f 1)
+export LANG=C
+export LANG="${LOCALE}.UTF-8"
+export LC_ALL=C
+
+### Directory Management
+#############################################################################
+initialize_directories() {
+    local dirs=(
+        "${OUTPUT_DIR}"
+        "${TMP_DIR}"
+        "${LOG_DIR}"
+        "${SQL_DIR}"
+    )
+
+    for dir in "${dirs[@]}"; do
+        if ! mkdir -p "${dir}"; then
+            log_error "Failed to create directory: ${dir}"
+            exit 1
+        fi
+    done
+}
+
+### Command Validation
+#############################################################################
+check_required_commands() {
+    local missing_commands=()
+
+    for cmd in "$@"; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            missing_commands+=("${cmd}")
+        fi
+    done
+
+    if (( ${#missing_commands[@]} > 0 )); then
+        log_error "Required commands not found: ${missing_commands[*]}"
+        return 1
+    fi
+
+    return 0
+}
+
+### String Manipulation
+#############################################################################
+sanitize_string() {
+    local input="$1"
+    echo "${input}" | tr -cd '[:alnum:]_-'
+}
+
+generate_collection_tag() {
+    local timestamp
+    timestamp=$(date -u '+%Y%m%d_%H%M%S')
+    echo "pg_${timestamp}"
+}
+
+### File Operations
+#############################################################################
+ensure_file_exists() {
+    local file="$1"
+    local msg="${2:-File not found: ${file}}"
+
+    if [[ ! -f "${file}" ]]; then
+        log_error "${msg}"
+        return 1
+    fi
+
+    return 0
+}
+
+cleanup_temp_files() {
+    local pattern="$1"
+    find "${TMP_DIR}" -name "${pattern}" -type f -delete
+}
+
+### Error Handling
+#############################################################################
+trap_error() {
+    local exit_code=$?
+    log_error "Error occurred in script at line $1, exit code: ${exit_code}"
+
+    # Cleanup any temporary files
+    if [[ -d "${TMP_DIR}" ]]; then
+        cleanup_temp_files "*"
+    fi
+
+    exit "${exit_code}"
+}
+
+trap 'trap_error ${LINENO}' ERR
+
+### Version Management
+#############################################################################
+parse_version() {
+    local version="$1"
+    echo "${version}" | grep -oE '^[0-9]+(\.[0-9]+)?'
+}
+
+compare_versions() {
+    local version1="$1"
+    local version2="$2"
+
+    if [[ "${version1}" == "${version2}" ]]; then
+        return 0
+    fi
+
+    local v1_parts v2_parts
+    IFS='.' read -ra v1_parts <<< "${version1}"
+    IFS='.' read -ra v2_parts <<< "${version2}"
+
+    for ((i=0; i<${#v1_parts[@]} && i<${#v2_parts[@]}; i++)); do
+        if ((10#${v1_parts[i]} > 10#${v2_parts[i]})); then
+            return 1
+        elif ((10#${v1_parts[i]} < 10#${v2_parts[i]})); then
+            return 2
+        fi
+    done
+
+    if ((${#v1_parts[@]} > ${#v2_parts[@]})); then
+        return 1
+    elif ((${#v1_parts[@]} < ${#v2_parts[@]})); then
+        return 2
+    fi
+
+    return 0
+}
+
+### Progress Tracking
+#############################################################################
+start_progress() {
+    local msg="$1"
+    echo -n "${msg}... " >&2
+}
+
+end_progress() {
+    local status="$1"
+    echo "${status}" >&2
+}
+
+### Resource Management
+#############################################################################
+get_available_memory() {
+    local mem_kb
+    if [[ -f /proc/meminfo ]]; then
+        mem_kb=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+        echo $((mem_kb / 1024))  # Convert to MB
+    else
+        # Fallback for systems without /proc/meminfo
+        local mem_mb
+        mem_mb=$(free -m | awk '/^Mem:/{print $7}')
+        echo "${mem_mb}"
+    fi
+}
+
+adjust_work_mem() {
+    local available_mb
+    available_mb=$(get_available_memory)
+    local work_mem_mb=$((available_mb / 4))  # Use 25% of available memory
+
+    if ((work_mem_mb > 1024)); then
+        work_mem_mb=1024  # Cap at 1GB
+    elif ((work_mem_mb < 64)); then
+        work_mem_mb=64    # Minimum 64MB
+    fi
+
+    echo "${work_mem_mb}MB"
+}
+
+### Initialization Complete
+#############################################################################
+log_debug "Common utilities loaded"

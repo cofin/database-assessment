@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1091
+# shellcheck source=/dev/null
+
+# {{ google_license }}
+
+### Script Version and Environment Setup
+#############################################################################
+readonly VERSION="{{ version }}"
+readonly GENERATION_DATE="{{ generation_date }}"
+readonly SUPPORTED_VERSIONS=( {{ supported_oracle_versions|join(' ') }} )
+
+### Default Settings
+#############################################################################
+SQLCMD=${SQLCMD:-"sqlplus"}
+SQLPLUS_OPTS="-S -L"
+OUTPUT_DIR=${OUTPUT_DIR:-"./output"}
+TMP_DIR=${TMP_DIR:-"./tmp"}
+LOG_DIR=${LOG_DIR:-"./logs"}
+SQL_DIR=${SQL_DIR:-"./sql"}
+
+### Source Utility Scripts
+#############################################################################
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/utils/common.sh"
+source "${SCRIPT_DIR}/utils/logging.sh"
+source "${SCRIPT_DIR}/utils/oracle_utils.sh"
+source "${SCRIPT_DIR}/utils/validation.sh"
+source "${SCRIPT_DIR}/utils/archive.sh"
+
+### Usage Information
+#############################################################################
+usage() {
+    cat <<EOF
+Oracle Database Migration Assessment Collection Script
+Version: ${VERSION}
+Generated: ${GENERATION_DATE}
+
+Usage: $0 [options]
+
+Required Options:
+  -H, --host          Database hostname or IP address
+  -P, --port          Database port number (default: 1521)
+  -S, --service       Oracle service name
+  -U, --username      Database username
+  -d, --dbname        Database name (SID)
+
+Optional Options:
+  -p, --password      Database password (will prompt if not provided)
+  -t, --tag           Collection tag (default: timestamp)
+  --source-id         DMA source identifier
+  --manual-id         DMA manual identifier
+  -o, --output-dir    Output directory (default: ./output)
+  --tmp-dir          Temporary directory (default: ./tmp)
+  --log-dir          Log directory (default: ./logs)
+  --sql-dir          SQL scripts directory (default: ./sql)
+  -v, --verbose       Enable verbose output
+  -h, --help          Show this help message
+  --version          Show version information
+
+Example:
+  $0 -H localhost -P 1521 -S ORCL -U system -d ORCL
+EOF
+}
+
+### Command Line Parsing
+#############################################################################
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -H|--host)
+                HOST="$2"
+                shift 2
+                ;;
+            -P|--port)
+                PORT="$2"
+                shift 2
+                ;;
+            -S|--service)
+                SERVICE_NAME="$2"
+                shift 2
+                ;;
+            -U|--username)
+                USERNAME="$2"
+                shift 2
+                ;;
+            -d|--dbname)
+                DBNAME="$2"
+                shift 2
+                ;;
+            -p|--password)
+                PASSWORD="$2"
+                shift 2
+                ;;
+            -t|--tag)
+                COLLECTION_TAG="$2"
+                shift 2
+                ;;
+            --source-id)
+                DMA_SOURCE_ID="$2"
+                shift 2
+                ;;
+            --manual-id)
+                DMA_MANUAL_ID="$2"
+                shift 2
+                ;;
+            -o|--output-dir)
+                OUTPUT_DIR="$2"
+                shift 2
+                ;;
+            --tmp-dir)
+                TMP_DIR="$2"
+                shift 2
+                ;;
+            --log-dir)
+                LOG_DIR="$2"
+                shift 2
+                ;;
+            --sql-dir)
+                SQL_DIR="$2"
+                shift 2
+                ;;
+            -v|--verbose)
+                VERBOSE=1
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            --version)
+                echo "Version: ${VERSION}"
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                usage
+                exit 1
+                ;;
+        esac
+    done
+}
+
+### Main Process
+#############################################################################
+main() {
+    local start_time
+    start_time=$(date +%s)
+
+    log_info "Starting Oracle database collection (Version: ${VERSION})"
+
+    # Initialize directories
+    initialize_directories
+
+    # Set collection tag if not provided
+    COLLECTION_TAG=${COLLECTION_TAG:-$(generate_collection_tag)}
+    log_info "Using collection tag: ${COLLECTION_TAG}"
+
+    # Prompt for password if not provided
+    if [[ -z "${PASSWORD}" ]]; then
+        read -r -s -p "Enter password for ${USERNAME}: " PASSWORD
+        echo
+    fi
+
+    # Test database connection
+    log_info "Testing database connection"
+    if ! test_connection; then
+        log_error "Failed to connect to database"
+        exit 1
+    fi
+
+    # Get and validate Oracle version
+    local version
+    version=$(get_oracle_version)
+    log_info "Oracle Version: ${version}"
+
+    if ! is_supported_version "${version}"; then
+        log_error "Unsupported Oracle version: ${version}"
+        log_error "Supported versions: ${SUPPORTED_VERSIONS[*]}"
+        exit 1
+    fi
+
+    # Execute collection scripts
+    log_info "Starting data collection"
+
+    local scripts=(
+        "version.sql:version_info"
+        "database_info.sql:database_config"
+        "table_info.sql:table_info"
+        "index_info.sql:index_info"
+        "performance_stats.sql:performance_stats"
+        "security_info.sql:security_info"
+        "storage_info.sql:storage_info"
+        "extension_info.sql:extension_info"
+    )
+
+    for script in "${scripts[@]}"; do
+        IFS=':' read -r sql_file output_base <<< "${script}"
+        log_info "Executing ${sql_file}"
+        if ! execute_sql_script "${sql_file}" "${output_base}"; then
+            log_error "Failed to execute ${sql_file}"
+            exit 1
+        fi
+    done
+
+    # Create collection archive
+    log_info "Creating collection archive"
+    if ! create_collection_archive; then
+        log_error "Failed to create collection archive"
+        exit 1
+    fi
+
+    # Calculate execution time
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+
+    log_info "Collection completed in ${duration} seconds"
+}
+
+### Script Execution
+#############################################################################
+# Parse command line arguments
+parse_args "$@"
+
+# Validate requirements
+validate_requirements
+
+# Execute main process
+main
+
+exit 0

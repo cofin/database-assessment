@@ -1,0 +1,172 @@
+/*
+Oracle Table Information Collection
+Generated: {{ generation_date }}
+
+Copyright {{ copyright_year }} Google LLC
+Licensed under the Apache License, Version 2.0
+*/
+
+-- Header
+SELECT 'pkey',
+       'owner',
+       'table_name',
+       'tablespace_name',
+       'cluster_name',
+       'status',
+       'num_rows',
+       'blocks',
+       'empty_blocks',
+       'avg_space_bytes',
+       'chain_cnt',
+       'avg_row_len',
+       'compression',
+       'compress_for',
+       'degree',
+       'partitioned',
+       'iot_type',
+       'temporary',
+       'nested',
+       'buffer_pool',
+       'flash_cache',
+       'cell_flash_cache',
+       'row_movement',
+       'global_stats',
+       'user_stats',
+       'duration',
+       'skip_corrupt',
+       'monitoring',
+       'dependencies',
+       'created',
+       'last_analyzed',
+       'size_bytes',
+       'size_readable',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Table Information
+WITH table_sizes AS (
+    SELECT owner,
+           segment_name,
+           SUM(bytes) AS total_bytes
+    FROM dba_segments
+    WHERE segment_type IN ('TABLE', 'TABLE PARTITION', 'TABLE SUBPARTITION')
+    GROUP BY owner, segment_name
+)
+SELECT :pkey AS pkey,
+       t.owner,
+       t.table_name,
+       t.tablespace_name,
+       t.cluster_name,
+       t.status,
+       t.num_rows,
+       t.blocks,
+       t.empty_blocks,
+       t.avg_space * t.block_size AS avg_space_bytes,
+       t.chain_cnt,
+       t.avg_row_len,
+       t.compression,
+       t.compress_for,
+       t.degree,
+       t.partitioned,
+       t.iot_type,
+       t.temporary,
+       t.nested,
+       t.buffer_pool,
+       t.flash_cache,
+       t.cell_flash_cache,
+       t.row_movement,
+       t.global_stats,
+       t.user_stats,
+       t.duration,
+       t.skip_corrupt,
+       t.monitoring,
+       t.dependencies,
+       t.created,
+       t.last_analyzed,
+       s.total_bytes AS size_bytes,
+       TRIM(TO_CHAR(ROUND(s.total_bytes/POWER(2,20), 2), '999,999.00')) || ' MB' AS size_readable,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM dba_tables t
+LEFT JOIN table_sizes s ON t.owner = s.owner
+    AND t.table_name = s.segment_name
+WHERE t.owner NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+                     'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+                     'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+                     'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS')
+  AND t.owner NOT LIKE 'APEX%'
+ORDER BY t.owner, t.table_name;
+
+-- Header: Column Information
+SELECT 'pkey',
+       'owner',
+       'table_name',
+       'column_name',
+       'data_type',
+       'data_type_full',
+       'data_length',
+       'data_precision',
+       'data_scale',
+       'nullable',
+       'column_id',
+       'default_length',
+       'density',
+       'num_nulls',
+       'num_distinct',
+       'hidden_column',
+       'virtual_column',
+       'char_length',
+       'char_used',
+       'histogram',
+       'dma_source_id',
+       'dma_manual_id'
+FROM dual;
+
+-- Column Information
+SELECT :pkey AS pkey,
+       c.owner,
+       c.table_name,
+       c.column_name,
+       c.data_type,
+       CASE
+           WHEN c.data_type LIKE '%CHAR%'
+           THEN c.data_type || '(' || c.data_length ||
+                CASE c.char_used
+                    WHEN 'B' THEN ' BYTE'
+                    WHEN 'C' THEN ' CHAR'
+                    ELSE ''
+                END || ')'
+           WHEN c.data_type = 'NUMBER' AND c.data_precision IS NOT NULL
+           THEN c.data_type || '(' || c.data_precision ||
+                CASE WHEN c.data_scale > 0
+                     THEN ',' || c.data_scale
+                     ELSE ''
+                END || ')'
+           ELSE c.data_type
+       END AS data_type_full,
+       c.data_length,
+       c.data_precision,
+       c.data_scale,
+       c.nullable,
+       c.column_id,
+       c.default_length,
+       c.density,
+       c.num_nulls,
+       c.num_distinct,
+       c.hidden_column,
+       c.virtual_column,
+       c.char_length,
+       c.char_used,
+       c.histogram,
+       :dma_source_id AS dma_source_id,
+       :dma_manual_id AS dma_manual_id
+FROM dba_tab_columns c
+JOIN dba_tables t ON c.owner = t.owner
+    AND c.table_name = t.table_name
+WHERE t.owner NOT IN ('SYS', 'SYSTEM', 'OUTLN', 'DBSNMP',
+                     'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DVSYS',
+                     'GSMADMIN_INTERNAL', 'MDSYS', 'OLAPSYS',
+                     'ORDDATA', 'ORDSYS', 'XDB', 'WMSYS')
+  AND t.owner NOT LIKE 'APEX%'
+ORDER BY c.owner, c.table_name, c.column_id;

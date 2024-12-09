@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1091
+# shellcheck source=/dev/null
+
+# {{ google_license }}
+
+### Script Version and Environment Setup
+#############################################################################
+readonly VERSION="{{ version }}"
+readonly GENERATION_DATE="{{ generation_date }}"
+readonly SUPPORTED_VERSIONS=( {{ supported_postgres_versions|join(' ') }} )
+
+# Source utility functions
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/utils/common.sh"
+source "${SCRIPT_DIR}/utils/logging.sh"
+source "${SCRIPT_DIR}/utils/postgres_utils.sh"
+source "${SCRIPT_DIR}/utils/validation.sh"
+source "${SCRIPT_DIR}/utils/archive.sh"
+
+### Default Configuration
+#############################################################################
+SQLCMD="psql"
+OUTPUT_DIR="${SCRIPT_DIR}/output"
+SQLOUTPUT_DIR="${OUTPUT_DIR}"
+TMP_DIR="${SCRIPT_DIR}/tmp"
+LOG_DIR="${SCRIPT_DIR}/log"
+SQL_DIR="${SCRIPT_DIR}/sql"
+COLLECTION_TAG=""
+COMPRESS_CMD="gzip"
+COMPRESS_EXT="gz"
+COMPRESS_OPTS="-9"
+
+### Command Line Options
+#############################################################################
+show_usage() {
+    cat << EOF
+Usage: $0 [OPTIONS]
+
+PostgreSQL Database Migration Assessment Collection Script
+Version: ${VERSION}
+Generated: ${GENERATION_DATE}
+
+Required Options:
+    -H, --host HOST            Database server hostname
+    -p, --port PORT           Database server port
+    -U, --user USERNAME       Database user name
+    -d, --dbname DBNAME       Database name to connect to
+
+Optional Options:
+    -P, --password PASS       Database password (not recommended, use PGPASSWORD env var)
+    -t, --tag TAG            Custom tag for collection files
+    -z, --zip                Use zip compression instead of gzip
+    -v, --verbose            Enable verbose output
+    -h, --help               Show this help message
+
+Environment Variables:
+    PGPASSWORD               PostgreSQL password
+    PGAPPNAME               Application name for connection (default: dma_collector)
+    DMA_SOURCE_ID           Custom source identifier
+    DMA_MANUAL_ID           Manual collection identifier
+
+Examples:
+    $0 -H localhost -p 5432 -U myuser -d mydb
+    $0 --host db.example.com --port 5432 --user collector --dbname postgres --tag prod
+EOF
+}
+
+### Parse Command Line Arguments
+#############################################################################
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -H|--host)
+                HOST="$2"
+                shift 2
+                ;;
+            -p|--port)
+                PORT="$2"
+                shift 2
+                ;;
+            -U|--user)
+                USERNAME="$2"
+                shift 2
+                ;;
+            -d|--dbname)
+                DBNAME="$2"
+                shift 2
+                ;;
+            -P|--password)
+                export PGPASSWORD="$2"
+                shift 2
+                ;;
+            -t|--tag)
+                COLLECTION_TAG="$2"
+                shift 2
+                ;;
+            -z|--zip)
+                COMPRESS_CMD="zip"
+                COMPRESS_EXT="zip"
+                COMPRESS_OPTS="-q"
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE=1
+                shift
+                ;;
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+}
+
+### Validation Functions
+#############################################################################
+validate_requirements() {
+    # Check required commands
+    local required_commands="{{ required_commands|join(' ') }}"
+    check_required_commands "$required_commands"
+
+    # Check required arguments
+    [[ -z "$HOST" ]] && { log_error "Missing required option: host"; show_usage; exit 1; }
+    [[ -z "$PORT" ]] && { log_error "Missing required option: port"; show_usage; exit 1; }
+    [[ -z "$USERNAME" ]] && { log_error "Missing required option: user"; show_usage; exit 1; }
+    [[ -z "$DBNAME" ]] && { log_error "Missing required option: dbname"; show_usage; exit 1; }
+
+    # Set collection tag if not provided
+    if [[ -z "$COLLECTION_TAG" ]]; then
+        COLLECTION_TAG=$(generate_collection_tag)
+    fi
+}
+
+### Collection Functions
+#############################################################################
+collect_version_info() {
+    log_info "Collecting PostgreSQL version information"
+    execute_sql_script "version.sql" "version_info"
+}
+
+collect_database_info() {
+    log_info "Collecting database configuration"
+    execute_sql_script "database_info.sql" "database_info"
+}
+
+collect_table_info() {
+    log_info "Collecting table metadata"
+    execute_sql_script "table_info.sql" "table_info"
+}
+
+collect_index_info() {
+    log_info "Collecting index information"
+    execute_sql_script "index_info.sql" "index_info"
+}
+
+collect_performance_stats() {
+    log_info "Collecting performance statistics"
+    execute_sql_script "table_stats.sql" "table_stats"
+    execute_sql_script "index_stats.sql" "index_stats"
+    execute_sql_script "pg_stat_statements.sql" "query_stats"
+}
+
+collect_security_info() {
+    log_info "Collecting security configuration"
+    execute_sql_script "role_info.sql" "role_info"
+    execute_sql_script "grant_info.sql" "grant_info"
+}
+
+### Main Collection Process
+#############################################################################
+main() {
+    log_info "Starting PostgreSQL collection process"
+    log_info "Version: ${VERSION}"
+    log_info "Collection Tag: ${COLLECTION_TAG}"
+
+    # Initialize directories
+    initialize_directories
+
+    # Test database connection
+    if ! test_connection; then
+        log_error "Failed to connect to database"
+        exit 1
+    fi
+
+    # Collect PostgreSQL version
+    local pg_version
+    pg_version=$(get_postgres_version)
+    log_info "PostgreSQL Version: ${pg_version}"
+
+    # Validate PostgreSQL version
+    if ! is_supported_version "$pg_version"; then
+        log_warning "PostgreSQL version ${pg_version} may not be fully supported"
+    fi
+
+    # Perform collections
+    collect_version_info
+    collect_database_info
+    collect_table_info
+    collect_index_info
+    collect_performance_stats
+    collect_security_info
+
+    # Create collection archive
+    create_collection_archive
+
+    log_info "Collection completed successfully"
+}
+
+### Script Execution
+#############################################################################
+# Set error handling
+set -euo pipefail
+
+# Parse command line arguments
+parse_args "$@"
+
+# Validate requirements
+validate_requirements
+
+# Execute main process
+main
+
+exit 0
