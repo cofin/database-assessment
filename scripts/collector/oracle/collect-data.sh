@@ -186,23 +186,7 @@ function cleanup_dma_output() {
   for outfile in  ${output_dir}/opdb*${v_file_tag}.csv
   do
     if [[ -f $outfile ]] ; then
-      if [[ $(uname) = "SunOS" ]];then
-        ${sed_cmd} 's/ *\|/\|/g;s/\| */\|/g;/^$/d'  ${outfile} > sed_${v_file_tag}.tmp
-        mv sed_${v_file_tag}.tmp ${outfile}
-      else
-        if [[ $(uname) = "AIX" ]];then
-          ${sed_cmd} 's/ *\|/\|/g;s/\| */\|/g;/^$/d'  ${outfile} > sed_${v_file_tag}.tmp
-          mv sed_${v_file_tag}.tmp ${outfile}
-        else
-          if [[ "$(uname)" = "HP-UX" ]];then
-            ${sed_cmd} 's/ *\|/\|/g;s/\| */\|/g;/^$/d'  ${outfile} > sed_${v_file_tag}.tmp
-            mv sed_${v_file_tag}.tmp ${outfile}
-          else
-            ${sed_cmd} -r 's/[[:space:]]+\|/\|/g;s/\|[[:space:]]+/\|/g;/^$/d' ${outfile} > sed_${v_file_tag}.tmp
-            mv sed_${v_file_tag}.tmp ${outfile}
-          fi
-        fi
-      fi
+        dma_clean_csv "$outfile" "oracle"
     fi
   done
 }
