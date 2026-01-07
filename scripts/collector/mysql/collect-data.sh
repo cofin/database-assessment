@@ -32,23 +32,22 @@ LOG_DIR=${SCRIPT_DIR}/log
 SQL_DIR=${SCRIPT_DIR}/sql
 DBTYPE=""
 
-GREP=$(which grep)
-SED=$(which sed)
-MD5SUM=$(which md5sum)
-MD5COL=1
-
-if [ "$(uname)" = "SunOS" ]
-then
-      GREP=/usr/xpg4/bin/grep
-      SED=/usr/xpg4/bin/sed
+# Load shared library
+if [[ -f "${SCRIPT_DIR}/lib/dma_common.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/dma_common.sh"
+elif [[ -f "${SCRIPT_DIR}/../lib/dma_common.sh" ]]; then
+    source "${SCRIPT_DIR}/../lib/dma_common.sh"
+else
+    echo "Error: Shared library dma_common.sh not found."
+    exit 1
 fi
 
-if [ "$(uname)" = "HP-UX" ]; then
-  if [ -f /usr/local/bin/md5 ]; then
-    MD5SUM=/usr/local/bin/md5
-    MD5COL=4
-  fi
-fi
+# Detect OS and set standard commands
+dma_detect_os
+GREP=${GREP_CMD}
+SED=${SED_CMD}
+MD5SUM=${MD5_CMD}
+MD5COL=${MD5_COL_INDEX}
 
 ZIP=$(which zip 2>/dev/null)
 if [ "${ZIP}" = "" ]
@@ -141,8 +140,12 @@ fi
 export DMA_SOURCE_ID=$(${SQLCMD} --user=$user --password=$pass -h $host -P $port --force --silent --skip-column-names $db 2>>${OUTPUT_DIR}/opdb__stderr_${V_FILE_TAG}.log < sql/init.sql | tr -d '\r')
 export SCRIPT_PATH=$(${SQLCMD} --user=$user --password=$pass -h $host -P $port --force --silent --skip-column-names $db 2>>${OUTPUT_DIR}/opdb__stderr_${V_FILE_TAG}.log < sql/_base_path_lookup.sql | tr -d '\r')
 
-for f in $(ls -1 sql/*.sql | grep -v -e init.sql | grep -v -e _base_path_lookup.sql)
-do
+for f in sql/*.sql; do
+  # Skip init and lookup scripts
+  if [[ "$f" == "sql/init.sql" ]] || [[ "$f" == "sql/_base_path_lookup.sql" ]]; then
+    continue
+  fi
+
   fname=$(echo ${f} | cut -d '/' -f 2 | cut -d '.' -f 1)
     ${SQLCMD} --user=$user --password=$pass -h $host -P $port --force --table  ${db} >${OUTPUT_DIR}/opdb__mysql_${fname}__${V_TAG} 2>>${OUTPUT_DIR}/opdb__stderr_${V_FILE_TAG}.log  <<EOF
 SET @DMA_SOURCE_ID='${DMA_SOURCE_ID}' ;
@@ -156,8 +159,15 @@ if [ ! -s ${OUTPUT_DIR}/opdb__mysql_${fname}__${V_TAG} ]; then
   cat sql/headers/${hdr}.header > ${OUTPUT_DIR}/opdb__mysql_${fname}__${V_TAG}
 fi
 done
-for f in $(ls -1 sql/${SCRIPT_PATH}/*.sql | grep -v -E "init.sql|_base_path_lookup.sql|hostname.sql")
-do
+for f in sql/${SCRIPT_PATH}/*.sql; do
+  # Check if glob expanded to a file
+  if [[ ! -e "$f" ]]; then continue; fi
+  
+  # Skip specific files using regex matching on the filename
+  if [[ "$f" =~ "init.sql" ]] || [[ "$f" =~ "_base_path_lookup.sql" ]] || [[ "$f" =~ "hostname.sql" ]]; then
+      continue
+  fi
+
   fname=$(echo ${f} | cut -d '/' -f 3 | cut -d '.' -f 1)
     ${SQLCMD} --user=$user --password=$pass -h $host -P $port --force --table  ${db} >${OUTPUT_DIR}/opdb__mysql_${fname}__${V_TAG} 2>>${OUTPUT_DIR}/opdb__stderr_${V_FILE_TAG}.log  <<EOF
 SET @DMA_SOURCE_ID='${DMA_SOURCE_ID}' ;
@@ -181,7 +191,17 @@ echo "\"$serverHostname\"|\"$serverIPs\"" >> "$hostOut"
 
 specsOut="output/opdb__mysql_db_machine_specs_${V_FILE_TAG}.csv"
 host=$(echo ${connectString} | cut -d '/' -f 4 | cut -d ':' -f 1)
-./db-machine-specs.sh "$host" "$vmUserName" "${V_FILE_TAG}" "${DMA_SOURCE_ID}" "${V_MANUAL_ID}" "${specsOut}" "${extraSSHArgs[@]}"
+
+if [[ -f "${SCRIPT_DIR}/common/db-machine-specs.sh" ]]; then
+    MACHINE_SPECS_SCRIPT="${SCRIPT_DIR}/common/db-machine-specs.sh"
+elif [[ -f "${SCRIPT_DIR}/../common/db-machine-specs.sh" ]]; then
+    MACHINE_SPECS_SCRIPT="${SCRIPT_DIR}/../common/db-machine-specs.sh"
+else
+    echo "Error: db-machine-specs.sh not found."
+    exit 1
+fi
+
+${MACHINE_SPECS_SCRIPT} "$host" "$vmUserName" "${V_FILE_TAG}" "${DMA_SOURCE_ID}" "${V_MANUAL_ID}" "${specsOut}" "${extraSSHArgs[@]}"
 }
 
 

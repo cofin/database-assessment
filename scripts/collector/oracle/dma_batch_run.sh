@@ -19,38 +19,22 @@ output_dir=${script_dir}/output; export output_dir
 sql_dir=${script_dir}/sql
 dma_log_name=DMA_BATCH_RUN_$(date +%Y%m%d%H%M%S).log
 
-# Now handle platform-specific commands and variables.
-# The default grep command in Solaris does not support the functionality required.  Need the alternative at /usr/xpg4/bin/awk.
-if [[ "$(uname)" = "SunOS" ]]; then
-  awk_cmd=/usr/xpg4/bin/awk
-  sed_cmd=/usr/xpg4/bin/sed
-  if [[ ! -f ${awk_cmd} ]]; then
-    echo "Solaris requires compatible version of awk at ${awk_cmd}.  Please install awk and retry'."
-    exit 1
-  fi
-  if [[ ! -f ${sed_cmd} ]]; then
-    echo "Solaris requires compatible version of sed at ${sed_cmd}.  Please install sed and retry'."
-    exit 1
-  fi
+# Source shared library
+if [[ -f "${script_dir}/lib/dma_common.sh" ]]; then
+  source "${script_dir}/lib/dma_common.sh"
+  dma_detect_os
+elif [[ -f "${script_dir}/../lib/dma_common.sh" ]]; then
+  source "${script_dir}/../lib/dma_common.sh"
+  dma_detect_os
 else
-  awk_cmd=$(which awk 2>/dev/null)
-  sed_cmd=$(which sed 2>/dev/null)
+  echo "Error: Shared library dma_common.sh not found."
+  exit 1
 fi
 
-# The default grep command in Solaris does not support the functionality required.  Need the GNU version at /usr/bin/ggrep or /usr/sfw/bin/ggrep.
-if [[ "$(uname)" = "SunOS" ]] ; then
-  if [[ -f /usr/bin/ggrep ]]; then
-    grep_cmd=/usr/bin/ggrep
-  else if [[ -f /usr/sfw/bin/ggrep ]]; then
-         grep_cmd=/usr/sfw/bin/ggrep
-       else
-         echo "Solaris requires 'ggrep' (GNU grep) installed in either /usr/bin/ggrep or /usr/sfw/bin/ggrep'. Please install "
-         exit 1
-       fi
-  fi
-else
-  grep_cmd=$(which grep 2>/dev/null)
-fi
+# Map variables
+awk_cmd=${AWK_CMD}
+sed_cmd=${SED_CMD}
+grep_cmd=${GREP_CMD}
 
 
 function count_children() {

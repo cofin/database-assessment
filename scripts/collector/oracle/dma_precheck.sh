@@ -21,119 +21,101 @@ function precheckOS() {
 
   fail_count=0
 
-  # Defaults for Linux
-  this_shell=${SHELL}
-  script_command=${BASH_SOURCE[0]}
+  # Source shared library for OS detection
   script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-  awk_cmd=$(which awk 2>/dev/null)
+  if [[ -f "${script_dir}/lib/dma_common.sh" ]]; then
+    source "${script_dir}/lib/dma_common.sh"
+    dma_detect_os
+  elif [[ -f "${script_dir}/../lib/dma_common.sh" ]]; then
+    source "${script_dir}/../lib/dma_common.sh"
+    dma_detect_os
+  else
+    echo "Error: Shared library dma_common.sh not found."
+    return 1
+  fi
+
+  # Map shared variables to local variables or check existence
+  awk_cmd=${AWK_CMD}
+  grep_cmd=${GREP_CMD}
+  sed_cmd=${SED_CMD}
+  md5sum_cmd=${MD5_CMD}
+  tar_cmd=${TAR_CMD}
+  zip_cmd=${ZIP_CMD}
+  gzip_cmd=${GZIP_CMD}
+
+  # Check other standard commands
   cut_cmd=$(which cut 2>/dev/null)
   dir_name_cmd=$(which dirname 2>/dev/null)
-  grep_cmd=$(which grep 2>/dev/null)
-  gzip_cmd=$(which gzip 2>/dev/null)
   iconv_cmd=$(which iconv 2>/dev/null)
-  md5sum_cmd=$(which md5sum 2>/dev/null)
   printf_cmd=$(which printf 2>/dev/null)
-  sed_cmd=$(which sed 2>/dev/null)
-  sqlplus_cmd=$(which sqlplus)
-  tar_cmd=$(which tar 2>/dev/null)
   tr_cmd=$(which tr 2>/dev/null)
   uname_cmd=$(which uname 2>/dev/null)
   xargs_cmd=$(which xargs 2>/dev/null)
-  zip_cmd=$(which zip 2>/dev/null)
+  sqlplus_cmd=$(which sqlplus 2>/dev/null)
 
-  # Override for Solaris
-  if [[ "$(uname)" = "SunOS" ]]; then
-    sed_cmd=/usr/xpg4/bin/sed
-
-    if [[ -f /usr/bin/ggrep ]]; then
-      grep_cmd=/usr/bin/ggrep
-    else if [[ -f /usr/sfw/bin/ggrep ]]; then
-           grep_cmd=/usr/sfw/bin/ggrep
-         else
-           grep_cmd=""
-         fi
-    fi
+  # Platform overrides for SQL*Plus location (WSL/Cygwin)
+  if [[ $(uname -a | ${grep_cmd} -i -c microsoft ) -eq 1 ]]; then
+    sql_dir=$(wslpath -a -w ${script_dir})/sql
+    sqlplus_cmd=$(which sqlplus.exe 2>/dev/null)
+  fi
+  if [[ $(uname -a | ${grep_cmd} -i -c cygwin ) -eq 1 ]]; then
+    sql_dir=$(cygpath -w ${script_dir})/sql
+    sqlplus_cmd=$(which sqlplus.exe 2>/dev/null)
   fi
 
-  # Override for HP-UX
-  if [[ "$(uname)" = "HP-UX" ]]; then
-    if [[ -f /usr/local/bin/md5 ]]; then
-      md5sum_cmd=/usr/local/bin/md5
-    fi
-  fi
-
-  if [[ "$(uname)" = "AIX" ]];then
-    if [[ -f /usr/local/bin/md5 ]];then
-      md5sum_cmd=/usr/local/bin/md5
-      md5_col=4
-    else if [[ -f /usr/bin/csum ]];then
-        md5sum_cmd="/usr/bin/csum -h MD5"
-        md5_col=1
-      fi
-    fi
-  fi
-
-  # If BASH_SOURCE is null, assume we are in ksh
-  if [[ "${script_command}" = "" ]]; then
-    script_command="${.sh.file}"
-  fi
-
+  # Validation logic
   if [[ "${awk_cmd}" = "" ]]; then
-    echo "FAILED : Missing command awk, please install this utility or update the path to include it."
+    echo "FAILED : Missing command awk."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${cut_cmd}" = "" ]]; then
-    echo "FAILED : Missing command cut, please install this utility or update the path to include it."
+    echo "FAILED : Missing command cut."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${dir_name_cmd}" = "" ]]; then
-    echo "FAILED : Missing command dirname, please install this utility or update the path to include it."
+    echo "FAILED : Missing command dirname."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${grep_cmd}" = "" ]]; then
-    if [[ "$(uname)" = "SunOS" ]] ; then
-      echo "FAILED : Solaris requires 'ggrep' (GNU grep) installed in either /usr/bin/ggrep or /usr/sfw/bin/ggrep. Please install to continue."
-    else
-      echo "FAILED : Missing command grep, please install this utility or update the path to include it."
-    fi
+    echo "FAILED : Missing command grep."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${md5sum_cmd}" = "" ]]; then
-    echo "FAILED : Missing command md5sum, please install this utility or update the path to include it."
+    echo "FAILED : Missing command md5sum/md5."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${printf_cmd}" = "" ]]; then
-    echo "FAILED : Missing command printf, please install this utility or update the path to include it."
+    echo "FAILED : Missing command printf."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${sed_cmd}" = "" ]]; then
-    echo "FAILED : Missing command sed, please install this utility or update the path to include it."
+    echo "FAILED : Missing command sed."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${iconv_cmd}" = "" ]]; then
-    echo "FAILED : Missing command iconv, please install this utility or update the path to include it."
+    echo "FAILED : Missing command iconv."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${tr_cmd}" = "" ]]; then
-    echo "FAILED : Missing command tr, please install this utility or update the path to include it."
+    echo "FAILED : Missing command tr."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${uname_cmd}" = "" ]]; then
-    echo "FAILED : Missing command uname, please install this utility or update the path to include it."
+    echo "FAILED : Missing command uname."
     fail_count=$(($fail_count + 1))
   fi
 
   if [[ "${xargs_cmd}" = "" ]]; then
-    echo "FAILED : Missing command xargs, please install this utility or update the path to include it."
+    echo "FAILED : Missing command xargs."
     fail_count=$(($fail_count + 1))
   fi
 
@@ -144,7 +126,7 @@ function precheckOS() {
       fail_count=$(($fail_count + 1))
     else
       if [[ "${tar_cmd}" = "" ]]; then
-        echo "FAILED : There is no zip available.  Found gzip but no tar. If the system does not have zip installed, it must have tar and gzip."
+        echo "FAILED : There is no zip available.  Found gzip but no tar."
         fail_count=$(($fail_count + 1))
       else
         echo "NOTICE : There is no zip available, so we will use tar and gzip."
@@ -152,21 +134,8 @@ function precheckOS() {
     fi
   fi
 
-  # Check for sqlplus_cmd client
-  # Check if running on Windows Subsystem for Linux
-  if [[ $(uname -a | ${grep_cmd} -i -c microsoft ) -eq 1 ]]; then
-    sql_dir=$(wslpath -a -w ${script_dir})/sql
-    sqlplus_cmd=$(which sqlplus.exe 2>/dev/null)
-  fi
-
-  # Check if running on Cygwin
-  if [[ $(uname -a | ${grep_cmd} -i -c cygwin ) -eq 1 ]]; then
-    sql_dir=$(cygpath -w ${script_dir})/sql
-    sqlplus_cmd=$(which sqlplus.exe 2>/dev/null)
-  fi
-
   if [[ "${sqlplus_cmd}" = "" ]]; then
-    echo "FAILED : SQL*Plus not found on this machine.  Ensure sqlplus is installed and in the path."
+    echo "FAILED : SQL*Plus not found on this machine."
     fail_count=$(($fail_count + 1))
   fi
 

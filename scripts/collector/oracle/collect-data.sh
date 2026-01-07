@@ -53,6 +53,28 @@ dma_automation_flag="N"
 # Define global variables that define how/what executables to use based on the platform on which we are running.
 function init_variables() {
   script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+  
+  # Source shared library
+  if [[ -f "${script_dir}/lib/dma_common.sh" ]]; then
+    source "${script_dir}/lib/dma_common.sh"
+    dma_detect_os
+  elif [[ -f "${script_dir}/../lib/dma_common.sh" ]]; then
+    source "${script_dir}/../lib/dma_common.sh"
+    dma_detect_os
+  else
+    echo "Error: Shared library dma_common.sh not found."
+    exit 1
+  fi
+
+  # Map shared variables to local variables used in this script
+  awk_cmd=${AWK_CMD}
+  grep_cmd=${GREP_CMD}
+  sed_cmd=${SED_CMD}
+  md5_cmd=${MD5_CMD}
+  md5_col=${MD5_COL_INDEX}
+  zip_cmd=${ZIP_CMD}
+  gzip_cmd=${GZIP_CMD}
+
   sqlplus_cmd=sqlplus
   output_dir=${script_dir}/output; export output_dir
   sql_output_dir=${output_dir}; export sql_output_dir
@@ -61,71 +83,6 @@ function init_variables() {
   log_dir=${script_dir}/log
   sql_dir=${script_dir}/sql
   oee_dir=${script_dir}/oee
-
-  awk_cmd=$(which awk 2>/dev/null)
-  grep_cmd=$(which grep)
-  sed_cmd=$(which sed)
-  md5_cmd=$(which md5sum 2>/dev/null)
-  md5_col=1
-
-  # If no ZIP installed, check for GZIP
-  zip_cmd=$(which zip 2>/dev/null)
-  if [[ "${zip_cmd}" = "" ]];then
-    gzip_cmd=$(which gzip 2>/dev/null)
-  fi
-
-  # Now handle platform-specific commands and variables.
-  if [[ "$(uname)" = "SunOS" ]]; then
-    awk_cmd=/usr/xpg4/bin/awk
-    sed_cmd=/usr/xpg4/bin/sed
-    if [[ ! -f ${awk_cmd} ]]; then
-      echo "Solaris requires compatible version of awk at ${awk_cmd}.  Please install awk and retry'."
-      exit 1
-    fi
-    if [[ ! -f ${sed_cmd} ]]; then
-      echo "Solaris requires compatible version of sed at ${sed_cmd}.  Please install sed and retry'."
-      exit 1
-    fi
-  fi
-
-  # The default grep command in Solaris does not support the functionality required.  Need the GNU version at /usr/bin/ggrep or /usr/sfw/bin/ggrep.
-  if [[ "$(uname)" = "SunOS" ]] ; then
-    if [[ -f /usr/bin/ggrep ]]; then
-      grep_cmd=/usr/bin/ggrep
-    else if [[ -f /usr/sfw/bin/ggrep ]]; then
-           grep_cmd=/usr/sfw/bin/ggrep
-         else
-           echo "Solaris requires 'ggrep' (GNU grep) installed in either /usr/bin/ggrep or /usr/sfw/bin/ggrep'. Please install "
-           exit 1
-         fi
-    fi
-  else
-    grep_cmd=$(which grep 2>/dev/null)
-  fi
-
-
-  if [[ "$(uname)" = "HP-UX" ]];then
-    if [[ -f /usr/local/bin/md5 ]];then
-      md5sum_cmd=/usr/local/bin/md5
-      md5_col=4
-    else if [[ -f /usr/bin/csum ]];then
-        md5sum_cmd="/usr/bin/csum -h MD5"
-        md5_col=1
-      fi
-    fi
-  fi
-
-  if [[ "$(uname)" = "AIX" ]];then
-    if [[ -f /usr/local/bin/md5 ]];then
-      md5sum_cmd=/usr/local/bin/md5
-      md5_col=4
-    else if [[ -f /usr/bin/csum ]];then
-        md5sum_cmd="/usr/bin/csum -h MD5"
-        md5_col=1
-      fi
-    fi
-  fi
-
 
   # Check if running on Windows Subsystem for Linux
   is_windows=$(uname -a | ${grep_cmd} -i microsoft |wc -l)

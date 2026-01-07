@@ -32,23 +32,22 @@ LOG_DIR=${SCRIPT_DIR}/log
 SQL_DIR=${SCRIPT_DIR}/sql
 DBTYPE=""
 
-GREP=$(which grep)
-SED=$(which sed)
-MD5SUM=$(which md5sum)
-MD5COL=1
-
-if [ "$(uname)" = "SunOS" ]
-then
-      GREP=/usr/xpg4/bin/grep
-      SED=/usr/xpg4/bin/sed
+# Load shared library
+if [[ -f "${SCRIPT_DIR}/lib/dma_common.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/dma_common.sh"
+elif [[ -f "${SCRIPT_DIR}/../lib/dma_common.sh" ]]; then
+    source "${SCRIPT_DIR}/../lib/dma_common.sh"
+else
+    echo "Error: Shared library dma_common.sh not found."
+    exit 1
 fi
 
-if [ "$(uname)" = "HP-UX" ]; then
-  if [ -f /usr/local/bin/md5 ]; then
-    MD5SUM=/usr/local/bin/md5
-    MD5COL=4
-  fi
-fi
+# Detect OS and set standard commands
+dma_detect_os
+GREP=${GREP_CMD}
+SED=${SED_CMD}
+MD5SUM=${MD5_CMD}
+MD5COL=${MD5_COL_INDEX}
 
 ZIP=$(which zip 2>/dev/null)
 if [ "${ZIP}" = "" ]
@@ -164,7 +163,17 @@ fi
 specsOut="output/opdb__pg_db_machine_specs_${host}.csv"
 if [[ ! -f "${specsOut}" ]] ; then
       host=$(echo ${connectString} | cut -d '/' -f 4 | cut -d ':' -f 1)
-      ./db-machine-specs.sh "$host" "$vmUserName" "${V_FILE_TAG}" "${DMA_SOURCE_ID}" "${V_MANUAL_ID}" "${specsOut}" "${extraSSHArgs[@]}"
+      
+      if [[ -f "${SCRIPT_DIR}/common/db-machine-specs.sh" ]]; then
+          MACHINE_SPECS_SCRIPT="${SCRIPT_DIR}/common/db-machine-specs.sh"
+      elif [[ -f "${SCRIPT_DIR}/../common/db-machine-specs.sh" ]]; then
+          MACHINE_SPECS_SCRIPT="${SCRIPT_DIR}/../common/db-machine-specs.sh"
+      else
+          echo "Error: db-machine-specs.sh not found."
+          exit 1
+      fi
+
+      ${MACHINE_SPECS_SCRIPT} "$host" "$vmUserName" "${V_FILE_TAG}" "${DMA_SOURCE_ID}" "${V_MANUAL_ID}" "${specsOut}" "${extraSSHArgs[@]}"
 fi
 
 # If allDbs = "Y" loop through all the databases in the instance and create a collection for each one, then exit.
