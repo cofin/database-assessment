@@ -226,7 +226,6 @@ function compress_dma_files() {
     echo "Please rerun the extract after correcting the error condition."
   fi
 
-  tar_file=opdb_oracle_${diag_pack_access}__${v_file_tag}${v_err_tag}.tar
   zip_file=opdb_oracle_${diag_pack_access}__${v_file_tag}${v_err_tag}.zip
 
   locale > ${output_dir}/opdb__${v_file_tag}_locale.txt
@@ -234,34 +233,32 @@ function compress_dma_files() {
   echo "dbmajor = ${dbmajor}"  >> ${output_dir}/opdb__defines__${v_file_tag}.csv
   echo "ZIP_FILE: " ${zip_file} >> ${output_dir}/opdb__defines__${v_file_tag}.csv
 
-  cd ${output_dir}
-  if [[ -f opdb__manifest__${v_file_tag}.txt ]];then
-    rm opdb__manifest__${v_file_tag}.txt
+  # Create manifest
+  if [[ -f ${output_dir}/opdb__manifest__${v_file_tag}.txt ]];then
+    rm ${output_dir}/opdb__manifest__${v_file_tag}.txt
   fi
 
   # Skip creating the manifest file if the platform does not have md5_cmd installed
-  for file in $(ls -1  opdb*${v_file_tag}.csv opdb*${v_file_tag}*.log opdb*${v_file_tag}*.txt)
+  for file in ${output_dir}/opdb*${v_file_tag}.csv ${output_dir}/opdb*${v_file_tag}*.log ${output_dir}/opdb*${v_file_tag}*.txt
   do
-    if [[ -f "${md5_cmd}" ]] ; then
-      md5_val=$(${md5_cmd} $file | cut -d ' ' -f ${md5_col})
-    else
-      md5_val="N/A"
+    if [[ -f "${file}" ]]; then
+        if [[ -f "${md5_cmd}" ]] ; then
+          md5_val=$(${md5_cmd} $file | cut -d ' ' -f ${md5_col})
+        else
+          md5_val="N/A"
+        fi
+        filename=$(basename "$file")
+        echo "${db_type}|${md5_val}|${filename}"  >> ${output_dir}/opdb__manifest__${v_file_tag}.txt
     fi
-    echo "${db_type}|${md5_val}|${file}"  >> opdb__manifest__${v_file_tag}.txt
   done
 
-  if [[ ! "${zip_cmd}" = "" ]];then
-    ${zip_cmd} ${zip_file}  opdb*${v_file_tag}.csv opdb*${v_file_tag}*.log opdb*${v_file_tag}*.txt
-    output_file=${zip_file}
-  else
-    tar cvf "${tar_file}"  opdb*${v_file_tag}.csv opdb*${v_file_tag}*.log opdb*${v_file_tag}*.txt
-    $gzip_cmd "${tar_file}"
-    output_file="${tar_file}".gz
-  fi
+  # Define patterns and base name for shared function
+  local file_pattern="opdb*${v_file_tag}.csv opdb*${v_file_tag}*.log opdb*${v_file_tag}*.txt"
+  local base_name="opdb_oracle_${diag_pack_access}__${v_file_tag}${v_err_tag}"
 
-  if [[ -f $output_file ]];then
-    rm  opdb*${v_file_tag}.csv opdb*${v_file_tag}*.log opdb*${v_file_tag}*.txt
-  fi
+  # Call shared archive function
+  output_file=$(dma_archive_files "${output_dir}" "${file_pattern}" "${base_name}")
+  output_file=$(basename "${output_file}")
 
   cd ${current_working_dir}
   echo ""

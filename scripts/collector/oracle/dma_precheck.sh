@@ -14,7 +14,7 @@ configuration_file=""
 verify_user="Y"
 
 # Check that all required OS commands are available.
-function precheckOS() {
+function precheck_os() {
   fname="${FUNCNAME[0]}"
   echo
   echo Checking for availability of all operating system commands and utilities required for the DMA collector.
@@ -155,7 +155,7 @@ function precheckOS() {
 
 
 # Verify that any manual identifiers specified are unique within the configuration file.
-function precheckConfigUniqueId() {
+function precheck_config_unique_id() {
   fname="${FUNCNAME[0]}"
   print_separator
   unqiuevals=()
@@ -198,7 +198,7 @@ function precheck_oee_platform() {
 
 
 # Verify we can process the configuration file.
-function precheckConfigFileFormat() {
+function precheck_config_file_format() {
   fname="${FUNCNAME[0]}"
   print_separator
 
@@ -259,9 +259,9 @@ function precheckConfigFileFormat() {
 
 # Connect to the specified database and verify that the DMA user has access to the stats tables requested and that sufficient stats history is available.
 # We do not check for permissions on all tables/views required, just assume that if the grants script was run we have have everything we need.
-function checkStats() {
+function check_stats() {
   fname="${FUNCNAME[0]}"
-  fname='checkStats'
+  fname='check_stats'
   ${sqlplus_cmd} -S  -L /nolog  << EOF
   connect ${1}${2}
   set heading off
@@ -351,7 +351,7 @@ EOF
 
 
 # Loop through the databases given and check that the stats requested are available.
-function precheckStats() {
+function precheck_stats() {
   fname="${FUNCNAME[0]}"
   print_separator
 
@@ -373,7 +373,7 @@ function precheckStats() {
     [[ "${sysUser}" =~ ^# ]] || [[ -z "${sysUser}" ]] && continue
     username=$(echo "${user}" | cut -d '/' -f 1)
     echo  "...Checking available performance statistics on database ${db} user ${username} for ${statssrc}"
-    retcd=$(checkStats "${user}" "${db}" "${statssrc}" "${statswindow}")
+    retcd=$(check_stats "${user}" "${db}" "${statssrc}" "${statswindow}")
     success=$(echo "${retcd}" | ${grep_cmd} -e SUCCESS -e NONE -e WARNING -e FAIL | cut -d ' ' -f 1)
     if [[ "${success}" = "SUCCESS" ]]; then
       successes+=("${retcd}")
@@ -427,7 +427,7 @@ function precheckStats() {
 
 
 # Verify we can connect as SYSDBA role
-function checkSysdbaConnection() {
+function check_sysdba_connection() {
   ${sqlplus_cmd} -s -L /nolog << EOF
   connect ${1}${2} as sysdba
   set heading off
@@ -439,7 +439,7 @@ EOF
 
 
 # Loop through the databases given an verify we can connect as SYSDBA.
-function precheckSysdba() {
+function precheck_sysdba() {
   fname="${FUNCNAME[0]}"
   print_separator
   echo "Checking SYSDBA connections where needed..."
@@ -460,7 +460,7 @@ function precheckSysdba() {
       successes+=("SKIPPED : ${db}")
     else
       echo -n "...Testing SYSDBA connection to database ${db}"
-      retcd=$(checkSysdbaConnection "${sysUser}" "${db}" )
+      retcd=$(check_sysdba_connection "${sysUser}" "${db}" )
       success=$(echo "${retcd}" | ${grep_cmd} SUCCESS)
       if [[ "${success}" =~ "SUCCESS" ]]; then
         echo " : SUCCESS"
@@ -501,7 +501,7 @@ function precheckSysdba() {
 
 
 # Check that the DMA user is able to connect to the given database.
-function checkConnection() {
+function check_connection() {
   fname="${FUNCNAME[0]}"
   ${sqlplus_cmd} -s -L "${1}${2} " << EOF
   set heading off
@@ -513,7 +513,7 @@ EOF
 
 
 # Verify the DMA user is able to connect to the target databases.
-function precheckUser() {
+function precheck_user() {
   fname="${FUNCNAME[0]}"
   print_separator
   echo "Checking DMA user connections ..."
@@ -530,7 +530,7 @@ function precheckUser() {
     [[ "${sysUser}" =~ ^# ]] || [[ -z "${sysUser}" ]] && continue
     username=$(echo ${user} | cut -d '/' -f 1)
     echo -n "...Testing DMA user connection for user ${username} to database ${db}"
-    retcd=$(checkConnection "${user}" "${db}" )
+    retcd=$(check_connection "${user}" "${db}" )
     success=$(echo "${retcd}" | ${grep_cmd} SUCCESS)
     if [[ "${success}" =~ "SUCCESS" ]]; then
       echo " : SUCCESS"
@@ -571,20 +571,20 @@ function precheckUser() {
 }
 
 
-function runAllChecks() {
+function run_all_checks() {
 
   echo
   echo "Starting DMA prechecks..."
   echo
   print_separator
-  precheckOS
+  precheck_os
   retval=$?
-  if [[ $retval -eq 0 ]]; then precheckConfigFileFormat; retval=$?; fi
-  if [[ $retval -eq 0 ]]; then precheckConfigUniqueId ; retval=$?; fi
-  if [[ $retval -eq 0 ]]; then precheckSysdba; retval=$?; fi
+  if [[ $retval -eq 0 ]]; then precheck_config_file_format; retval=$?; fi
+  if [[ $retval -eq 0 ]]; then precheck_config_unique_id ; retval=$?; fi
+  if [[ $retval -eq 0 ]]; then precheck_sysdba; retval=$?; fi
   if [[ "${verify_user}" = "Y" ]]; then
-    if [[ $retval -eq 0 ]]; then precheckUser; retval=$?; fi
-    if [[ $retval -eq 0 ]]; then precheckStats; retval=$?; fi
+    if [[ $retval -eq 0 ]]; then precheck_user; retval=$?; fi
+    if [[ $retval -eq 0 ]]; then precheck_stats; retval=$?; fi
   fi
 # RESERVED FOR FUTURE USE
 #  if [[ $retval -eq 0 ]] && [[ $oee_entries -eq 1 ]] ; then precheck_oee_platform; retval=$?; fi
@@ -675,7 +675,7 @@ function main() {
   if [[ -f "${configuration_file}" ]]; then
     configfilelinecount=$(wc -l < <( tr -d ' ' < "${configuration_file}" | tr -d "${tab_char}" | grep -v '^#' | grep -v '^$' ))
     echo "Checking ${configfilelinecount} entries in file ${configuration_file}..."
-    runAllChecks
+    run_all_checks
   else
     echo "File not found : ${configuration_file}"
   fi

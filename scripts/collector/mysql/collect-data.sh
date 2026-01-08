@@ -63,7 +63,7 @@ if [ ! -d ${OUTPUT_DIR} ]; then
 fi
 
 
-function checkPlatform {
+function check_platform {
 
  if [ "$1" == "mysql" ];
  then SQLCMD=mysql
@@ -90,7 +90,7 @@ function checkPlatform {
 
 ### Import logging & helper functions
 #############################################################################
-function checkVersionMysql {
+function check_version_mysql {
     connectString="$1"
     OpVersion=$2
     user=$(echo ${connectString} | cut -d '/' -f 1)
@@ -120,7 +120,7 @@ echo 'DMAFILETAG~'${dbVersion}'|'${dbVersion}'_'${OpVersion}'_'${host}'-'${port}
 }
 
 
-function executeOPMysql {
+function execute_op_mysql {
 connectString="$1"
 OpVersion=$2
 V_FILE_TAG=$3
@@ -207,7 +207,7 @@ ${MACHINE_SPECS_SCRIPT} "$host" "$vmUserName" "${V_FILE_TAG}" "${DMA_SOURCE_ID}"
 
 # Check the output files for error messages.
 # Slightly different selection criteria for each source.
-function createErrorLog {
+function create_error_log {
 V_FILE_TAG=$1
 echo "Checking for errors..."
         if [ "$DBTYPE" == "mysql" ] ; then
@@ -221,7 +221,7 @@ fi
 }
 
 
-function cleanupOpOutput  {
+function cleanup_op_output  {
 V_FILE_TAG=$1
 echo "Preparing files for compression."
 for outfile in  ${OUTPUT_DIR}/opdb*${V_FILE_TAG}.csv
@@ -232,7 +232,7 @@ do
 done
 }
 
-function compressOpFiles  {
+function compress_op_files  {
 V_FILE_TAG=$1
 V_ERR_TAG=""
 echo ""
@@ -255,7 +255,6 @@ then
   echo "Please rerun the extract after correcting the error condition."
 fi
 
-TARFILE=opdb_${DBTYPE}_${DIAGPACKACCESS}__${V_FILE_TAG}${V_ERR_TAG}.tar
 ZIPFILE=opdb_${DBTYPE}_${DIAGPACKACCESS}__${V_FILE_TAG}${V_ERR_TAG}.zip
 
 locale > ${OUTPUT_DIR}/opdb__${V_FILE_TAG}_locale.txt
@@ -264,32 +263,29 @@ echo "dbmajor = ${dbmajor}"  >> ${OUTPUT_DIR}/opdb__defines__${V_FILE_TAG}.csv
 echo "MANUAL_ID : " ${MANUAL_ID} >> ${OUTPUT_DIR}/opdb__defines__${V_FILE_TAG}.csv
 echo "ZIPFILE: " $ZIPFILE >> ${OUTPUT_DIR}/opdb__defines__${V_FILE_TAG}.csv
 
-cd ${OUTPUT_DIR}
-if [ -f opdb__manifest__${V_FILE_TAG}.txt ];
+# Create manifest
+if [ -f ${OUTPUT_DIR}/opdb__manifest__${V_FILE_TAG}.txt ];
 then
-  rm opdb__manifest__${V_FILE_TAG}.txt
+  rm ${OUTPUT_DIR}/opdb__manifest__${V_FILE_TAG}.txt
 fi
 
-for file in $(ls -1  opdb*${V_FILE_TAG}.csv opdb*${V_FILE_TAG}*.log opdb*${V_FILE_TAG}*.txt)
+for file in ${OUTPUT_DIR}/opdb*${V_FILE_TAG}.csv ${OUTPUT_DIR}/opdb*${V_FILE_TAG}*.log ${OUTPUT_DIR}/opdb*${V_FILE_TAG}*.txt
 do
- MD5=$(${MD5SUM} $file | cut -d ' ' -f ${MD5COL})
- echo "${DBTYPE}|${MD5}|${file}"  >> opdb__manifest__${V_FILE_TAG}.txt
+ if [[ -f "$file" ]]; then
+   MD5=$(${MD5SUM} $file | cut -d ' ' -f ${MD5COL})
+   # Strip path from filename for manifest
+   filename=$(basename "$file")
+   echo "${DBTYPE}|${MD5}|${filename}"  >> ${OUTPUT_DIR}/opdb__manifest__${V_FILE_TAG}.txt
+ fi
 done
 
-if [ ! "${ZIP}" = "" ]
-then
-  $ZIP $ZIPFILE  opdb*${V_FILE_TAG}.csv opdb*${V_FILE_TAG}*.log opdb*${V_FILE_TAG}*.txt
-  OUTFILE=$ZIPFILE
-else
-  tar cvf $TARFILE  opdb*${V_FILE_TAG}.csv opdb*${V_FILE_TAG}*.log opdb*${V_FILE_TAG}*.txt
-  $GZIP $TARFILE
-  OUTFILE=${TARFILE}.gz
-fi
+# Define patterns and base name for shared function
+FILE_PATTERN="opdb*${V_FILE_TAG}.csv opdb*${V_FILE_TAG}*.log opdb*${V_FILE_TAG}*.txt"
+BASE_NAME="opdb_${DBTYPE}_${DIAGPACKACCESS}__${V_FILE_TAG}${V_ERR_TAG}"
 
-if [ -f $OUTFILE ]
-then
-  rm opdb*${V_FILE_TAG}.csv opdb*${V_FILE_TAG}*.log opdb*${V_FILE_TAG}*.txt
-fi
+# Call shared archive function
+OUTFILE=$(dma_archive_files "${OUTPUT_DIR}" "${FILE_PATTERN}" "${BASE_NAME}")
+OUTFILE=$(basename "${OUTFILE}")
 
 cd ${CURRENT_WORKING_DIR}
 echo ""
@@ -298,7 +294,7 @@ echo ""
 return $retval
 }
 
-function getVersion  {
+function get_version  {
   if [ -f VERSION.txt ]; then
    githash=$(cat VERSION.txt | cut -d '(' -f 2 | tr -d ')' )
   else githash="NONE"
@@ -306,7 +302,7 @@ function getVersion  {
   echo "$githash"
 }
 
-function printExtractorVersion
+function print_extractor_version
 {
 if [ "$1" == "NONE" ];
 then
@@ -328,7 +324,7 @@ fi
 }
 
 
-function printUsage()
+function print_usage()
 {
 echo " Usage:"
 echo "  Parameters"
@@ -377,7 +373,7 @@ specsPath=""
  if [[ $(($# & 1)) == 1 ]] ;
  then
   echo "Invalid number of parameters.  Each parameter must specify a value. "
-  printUsage
+  print_usage
   exit
  fi
 
@@ -394,7 +390,7 @@ specsPath=""
 	 elif [[ "$1" == "--specsPath" ]];          then specsPath=("${2}")
 	 else
 		 echo "Unknown parameter ${1}"
-		 printUsage
+		 print_usage
 		 exit
 	 fi
 	 shift 2
@@ -408,7 +404,7 @@ DIAGPACKACCESS="mysql"
 		 connStr="${collectionUserName}/${collectionUserPass}@//${hostName}:${port}/${databaseService}"
 	 else
 		 echo "Connection information incomplete"
-		 printUsage
+		 print_usage
 		 exit
 	 fi
  fi
@@ -440,10 +436,10 @@ DIAGPACKACCESS="mysql"
 
 connectString="${connStr}"
 
-checkPlatform $DBTYPE
+check_platform $DBTYPE
 
   if [ "$DBTYPE" == "mysql" ] ; then
-    sqlcmd_result=$(checkVersionMysql "${connectString}" "${OpVersion}" )
+    sqlcmd_result=$(check_version_mysql "${connectString}" "${OpVersion}" )
     retval=$?
       if [[ $retval -ne 0 ]];
         then
@@ -457,12 +453,12 @@ checkPlatform $DBTYPE
       fi
     fi
 
-extractorVersion="$(getVersion)"
+extractorVersion="$(get_version)"
 
 echo ""
 echo "==================================================================================="
 echo "Database Migration Assessment Database Assessment Collector Version ${OpVersion}"
-printExtractorVersion "${extractorVersion}"
+print_extractor_version "${extractorVersion}"
 echo "==================================================================================="
 
 if [ $retval -eq 0 ]; then
@@ -478,21 +474,21 @@ if [ $retval -eq 0 ]; then
     V_TAG="$(echo ${sqlcmd_result} | cut -d '|' -f2).csv"; export V_TAG
 
     if [ "$DBTYPE" == "mysql" ]; then
-      executeOPMysql "${connectString}" ${OpVersion} $(echo ${V_TAG} | ${SED} 's/.csv//g') "${manualUniqueId}"
+      execute_op_mysql "${connectString}" ${OpVersion} $(echo ${V_TAG} | ${SED} 's/.csv//g') "${manualUniqueId}"
       retval=$?
     fi
 
     if [ $retval -ne 0 ]; then
-      createErrorLog  $(echo ${V_TAG} | ${SED} 's/.csv//g')
-      compressOpFiles $(echo ${V_TAG} | ${SED} 's/.csv//g')
+      create_error_log  $(echo ${V_TAG} | ${SED} 's/.csv//g')
+      compress_op_files $(echo ${V_TAG} | ${SED} 's/.csv//g')
       echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
       echo "Database Migration Assessment extract reported an error.  Please check the error log in directory ${LOG_DIR}"
       echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
       echo "Exiting...."
       exit 255
     fi
-    createErrorLog  $(echo ${V_TAG} | sed 's/.csv//g')
-    cleanupOpOutput $(echo ${V_TAG} | sed 's/.csv//g')
+    create_error_log  $(echo ${V_TAG} | sed 's/.csv//g')
+    cleanup_op_output $(echo ${V_TAG} | sed 's/.csv//g')
     retval=$?
     if [ $retval -ne 0 ]; then
       echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -501,7 +497,7 @@ if [ $retval -eq 0 ]; then
       echo "Exiting...."
       exit 255
     fi
-    compressOpFiles $(echo ${V_TAG} | ${SED} 's/.csv//g')
+    compress_op_files $(echo ${V_TAG} | ${SED} 's/.csv//g')
     retval=$?
     if [ $retval -ne 0 ]; then
       echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -515,7 +511,7 @@ if [ $retval -eq 0 ]; then
     echo "Data collection located at ${OUTPUT_DIR}/${OUTFILE}"
     echo "==================================================================================="
     echo ""
-    printExtractorVersion "${extractorVersion}"
+    print_extractor_version "${extractorVersion}"
     exit 0
   fi
 else

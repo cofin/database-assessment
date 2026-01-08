@@ -43,7 +43,7 @@ function count_children() {
 }
 
 
-function batchRun() {
+function batch_run() {
   local -i lineno=0
   local -i err_cnt=0
   local -i line_cnt=$(wc -l < <( tr -d ' ' < "${config_file}" | tr -d "${tab_char}" | ${grep_cmd} -v '^#' | ${grep_cmd} -v '^$' ))
@@ -179,7 +179,7 @@ function main() {
   done
 
   if [[ -f "${config_file}" ]] ; then
-    batchRun
+    batch_run
     retval=$?
 
     if [[ ${retval} -eq 0 ]] ; then
